@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>和歌ドラフト</title>
+<meta name="description" content="スマホを持ち寄って遊ぶ和歌ドラフト">
+<meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16140f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="和歌ドラフト">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4efe4; --paper:#fbf8f1; --paper2:#ece4d4; --ink:#1d1b18; --ink2:#55503f; --ink3:#776f62;
+  --line:#d9cfbd; --shu:#c4402c; --shu-btn:#c4402c; --shu-soft:#f3d9d2; --kin:#a8843f;
+  --five:#2f4f6f; --five-line:#2f4f6f; --five-soft:#dfe7ef;
+  --seven:#4a6328; --seven-line:#8aa83a; --seven-soft:#e8efd6;
+  --ok:#3f7a46; --warn:#9a6a12; --ng:#b33a2b;
+  --mincho:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif;
+  --gothic:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#16140f; --paper:#221f19; --paper2:#2d2921; --ink:#ece5d6; --ink2:#bdb4a2; --ink3:#9a9180;
+    --line:#3c362c; --shu:#e0634c; --shu-btn:#b8432f; --shu-soft:#3d2520; --kin:#c9a35a;
+    --five:#a8c4de; --five-line:#6f97bd; --five-soft:#1f2b37;
+    --seven:#c2da9c; --seven-line:#9cbc4a; --seven-soft:#26301c;
+    --ok:#7fbf86; --warn:#e0ad55; --ng:#ef7a68;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--gothic);font-size:16px;line-height:1.6;min-height:100dvh;
+  background-image:radial-gradient(circle at 20% 10%,rgba(168,132,63,.06),transparent 40%),radial-gradient(circle at 90% 80%,rgba(196,64,44,.05),transparent 45%)}
+/* 和紙の繊維感 */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9 .25' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@media (prefers-color-scheme: dark){ body::before{opacity:.07;filter:invert(1)} }
+button,input,select{font:inherit;color:inherit}
+.wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom))}
+header.bar{flex-wrap:nowrap;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.brand{white-space:nowrap;font-family:var(--mincho);font-weight:800;font-size:19px;letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.seal{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:4px;background:var(--shu);color:#fff;font-size:14px;font-family:var(--mincho);font-weight:800;transform:rotate(-4deg);flex:none}
+.meta{font-size:13px;color:var(--ink2);text-align:right;line-height:1.35;white-space:nowrap;flex:none !important;max-width:8.5em;overflow:hidden;text-overflow:ellipsis}
+.meta .who{display:block;overflow:hidden;text-overflow:ellipsis}
+.meta b{font-family:var(--mincho);color:var(--ink);letter-spacing:.15em}
+.exitbtn{border:1px solid var(--line);background:var(--paper);border-radius:8px;min-height:44px;padding:0 12px;font-size:13px;font-weight:700;color:var(--ink2);cursor:pointer;flex:none}
+h1{font-family:var(--mincho);font-weight:800;font-size:34px;letter-spacing:.06em;margin:30px 0 6px;line-height:1.25}
+h2{font-family:var(--mincho);font-weight:700;font-size:22px;margin:0 0 6px;letter-spacing:.05em}
+h3{font-size:14px;color:var(--ink2);font-weight:700;margin:20px 0 8px;letter-spacing:.05em}
+p{margin:0 0 10px}
+.sub{color:var(--ink2);font-size:14px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:52px;padding:12px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);font-weight:700;cursor:pointer;transition:transform .08s}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--shu-btn);border-color:var(--shu-btn);color:#fff;box-shadow:0 4px 14px -8px rgba(160,40,20,.6)}
+.btn.ghost{background:transparent}
+.btn.small{min-height:44px;padding:6px 14px;width:auto;font-size:14px;font-weight:500}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn.primary:disabled{background:var(--paper2);color:var(--ink3);border:1px dashed var(--ink3);box-shadow:none;opacity:1}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.stack>*+*{margin-top:10px}
+label.f{display:block;font-size:13px;color:var(--ink2);margin:0 0 4px;font-weight:500}
+input.t{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:17px;outline:none}
+input.t::placeholder{color:var(--ink3);opacity:.55}
+input.t:focus{border-color:var(--kin);box-shadow:0 0 0 3px rgba(168,132,63,.18)}
+input.code{text-transform:uppercase;letter-spacing:.4em;font-family:var(--mincho);font-weight:800;font-size:24px;text-align:center}
+input.code::placeholder{font-weight:500;opacity:.35}
+.divider{display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px;margin:18px 0}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+.err{color:var(--ng);font-size:14px;min-height:1.2em}
+/* room code */
+.codebox{text-align:center;padding:8px 0 4px}
+.codebox .c{display:inline-block;font-family:var(--mincho);font-weight:800;font-size:44px;letter-spacing:.3em;padding:2px 0 2px .3em;margin:4px 0;border-top:3px double var(--shu);border-bottom:3px double var(--shu)}
+.qr{display:flex;justify-content:center;margin:10px 0 8px}
+.qr svg{width:170px;height:170px;background:#fff;border-radius:10px;padding:6px}
+/* players */
+.plist{list-style:none;margin:0;padding:0}
+.plist li{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px dashed var(--line);min-height:52px}
+.plist li:last-child{border-bottom:none}
+.plist .num{width:26px;height:26px;border-radius:50%;background:var(--paper2);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--ink2);flex:none}
+.plist .nm{flex:1;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--paper2);color:var(--ink2);font-weight:700;flex:none;line-height:1.6}
+.tag.me{background:var(--shu-soft);color:var(--shu)}
+.tag.done{background:transparent;color:var(--ok);border:1px solid currentColor}
+.tag.wait{background:transparent;color:var(--ink2);border:1px dashed currentColor}
+.tag.slow{background:var(--shu);color:#fff;border:1px solid var(--shu)}
+.iconbtn{border:1px solid var(--line);background:var(--paper);border-radius:8px;width:44px;height:44px;display:grid;place-items:center;cursor:pointer;flex:none;font-size:15px}
+.iconbtn:disabled{opacity:.3}
+.seg{display:flex;background:var(--paper2);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:none;background:transparent;min-height:44px;padding:8px 4px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink2)}
+.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button:disabled{cursor:default}
+.note{font-size:13px;color:var(--ink2);background:var(--paper2);border-radius:10px;padding:10px 12px;margin:10px 0}
+.note.warn{background:var(--shu-soft);color:var(--ink)}
+.waitname{font-family:var(--mincho);font-weight:800;font-size:20px;color:var(--shu)}
+/* phrase input */
+.phr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.phr .k{flex:none;width:34px;height:34px;border-radius:5px;display:grid;place-items:center;font-family:var(--mincho);font-weight:800;font-size:15px}
+.k5{background:var(--five-soft);color:var(--five)}
+.k7{background:var(--seven-soft);color:var(--seven)}
+.phr input{flex:1;min-width:0}
+.phr .cnt{flex:none;width:58px;text-align:right;font-size:12px;font-weight:700;color:var(--ink2);line-height:1.25}
+.cnt.ok{color:var(--ok)}.cnt.warn{color:var(--warn)}.cnt.ng{color:var(--ng)}
+/* cards */
+.cards{display:grid;grid-template-columns:1fr;gap:9px}
+.card{position:relative;display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:13px 14px;border-radius:4px;border:1px solid var(--line);background:var(--paper);font-family:var(--mincho);font-weight:700;font-size:19px;cursor:pointer;line-height:1.35;word-break:break-all;
+  box-shadow:0 1px 0 var(--line),0 3px 8px -6px rgba(0,0,0,.3);transition:transform .12s,box-shadow .12s}
+.card .k{flex:none;width:26px;height:26px;font-size:12px;border-radius:4px;display:grid;place-items:center;font-weight:800}
+.card.c5{border-left:6px solid var(--five-line)}
+.card.c7{border-left:6px solid var(--seven-line)}
+.card.sel{border-color:var(--shu);border-left-color:var(--shu);box-shadow:0 0 0 2px var(--shu),0 8px 18px -10px rgba(160,40,20,.5);background:var(--shu-soft);transform:translateY(-2px)}
+.hand{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mincho);font-weight:700;font-size:15px;padding:7px 10px;border-radius:4px;background:var(--paper);border:1px solid var(--line);line-height:1.3;box-shadow:0 2px 5px -4px rgba(0,0,0,.3)}
+.chip.c5{border-left:4px solid var(--five-line)}.chip.c7{border-left:4px solid var(--seven-line)}
+button.chip{cursor:pointer;min-height:44px}
+button.chip.used{opacity:.3;text-decoration:line-through}
+.round{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.round .big{font-family:var(--mincho);font-weight:800;font-size:28px;letter-spacing:.06em}
+.round .of{font-size:13px;color:var(--ink3);margin-left:4px}
+.dots{display:flex;gap:5px}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--shu)}
+.waitbox{text-align:center;padding:22px 10px;color:var(--ink2)}
+.brush{display:inline-block;width:40px;height:40px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--shu);animation:spin 1s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* compose slots */
+.slots{display:flex;flex-direction:column;gap:6px}
+.slot{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-radius:4px;border:1.5px dashed var(--line);background:transparent;width:100%;text-align:left;cursor:pointer}
+.slot.filled{border-style:solid;background:var(--paper);box-shadow:0 1px 0 var(--line),0 3px 8px -6px rgba(0,0,0,.3)}
+.slot.filled.s5{border-left:6px solid var(--five-line)}
+.slot.filled.s7{border-left:6px solid var(--seven-line)}
+.slot .k{flex:none;width:26px;height:26px;font-size:12px;border-radius:4px;display:grid;place-items:center;font-family:var(--mincho);font-weight:800}
+.slot .tx{font-family:var(--mincho);font-weight:700;font-size:19px;flex:1}
+.slot .ph{color:var(--ink3);font-size:14px}
+/* 色紙 */
+.shikishi{position:relative;aspect-ratio:24/27;max-height:72vh;margin:12px auto;padding:30px 18px 18px;display:flex;flex-direction:column;
+  background-color:var(--paper);border:1px solid var(--line);border-radius:3px;
+  box-shadow:0 0 0 6px var(--paper2),0 0 0 7px var(--line),0 18px 36px -20px rgba(0,0,0,.45);
+  background-image:
+    radial-gradient(circle at 12% 18%,rgba(201,163,90,.18) 0 1.5px,transparent 2.5px),
+    radial-gradient(circle at 78% 9%,rgba(201,163,90,.15) 0 1px,transparent 2px),
+    radial-gradient(circle at 88% 72%,rgba(201,163,90,.16) 0 1.5px,transparent 2.5px),
+    radial-gradient(circle at 30% 88%,rgba(201,163,90,.14) 0 1px,transparent 2px),
+    radial-gradient(ellipse at 100% 0%,rgba(201,163,90,.20),transparent 35%),
+    radial-gradient(ellipse at 0% 100%,rgba(201,163,90,.16),transparent 38%);
+  background-size:57px 61px,43px 47px,71px 53px,39px 67px,100% 100%,100% 100%}
+.shikishi .form{position:absolute;right:14px;top:10px;font-size:12px;color:var(--ink2);font-weight:700;letter-spacing:.1em}
+.shikishi .body{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.tate{writing-mode:vertical-rl;text-orientation:mixed;font-kerning:none;font-family:var(--mincho);font-weight:700;font-size:28px;line-height:1.8;letter-spacing:.08em;max-height:100%;max-width:100%;overflow-x:auto}
+.tate span{display:block}
+.tate span:nth-child(2){padding-top:1.2em}
+.tate span:nth-child(3){padding-top:2.4em}
+.tate span:nth-child(4){padding-top:.6em}
+.tate span:nth-child(5){padding-top:1.8em}
+.tate.anim span{opacity:0;animation:ink .7s ease forwards}
+@keyframes ink{from{opacity:0;filter:blur(3px);transform:translateY(-6px)}to{opacity:1;filter:none;transform:none}}
+.shikishi .by{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line);font-family:var(--mincho);font-weight:700;font-size:16px;color:var(--ink);min-height:44px}
+.shikishi .by .seal{width:26px;height:26px;font-size:13px}
+.shikishi .by.hidden{color:var(--ink3);font-weight:500}
+.shikishi .by.hidden .seal{background:var(--ink3)}
+.shikishi .by.stamp .seal{animation:stamp .45s cubic-bezier(.2,1.6,.4,1) both}
+.shikishi .by.stamp .nm{animation:fade .5s .25s ease both}
+@keyframes stamp{from{transform:scale(1.9) rotate(-12deg);opacity:0}to{transform:scale(1) rotate(-4deg);opacity:1}}
+.reader{text-align:center;font-size:14px;color:var(--ink2);margin-top:4px}
+.reader b{color:var(--shu);font-family:var(--mincho);font-size:17px}
+/* 今局の歌（横スクロールの作品集） */
+.gallery{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:6px 2px 14px;margin:0 -16px;padding-left:16px;padding-right:16px}
+.mini{flex:none;width:168px;scroll-snap-align:start;aspect-ratio:24/27;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px 10px 10px;display:flex;flex-direction:column;box-shadow:0 0 0 3px var(--paper2),0 0 0 4px var(--line);margin:4px}
+.mini .tate{font-size:15px;line-height:1.7;letter-spacing:.04em;flex:1;margin:0 auto}
+.mini .who{font-size:12px;color:var(--ink2);text-align:right;border-top:1px solid var(--line);padding-top:6px;font-family:var(--mincho);font-weight:700}
+.fade{animation:fade .5s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:9;width:max-content;max-width:min(20em,90vw);word-break:keep-all;overflow-wrap:anywhere;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.net{position:fixed;top:0;left:0;right:0;z-index:10;background:var(--warn);color:#fff;text-align:center;font-size:13px;font-weight:700;padding:calc(6px + env(safe-area-inset-top)) 12px 6px}
+.sticky{position:sticky;bottom:0;z-index:2;padding:14px 0 calc(8px + env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),var(--bg) 28%)}
+.rules ol{padding-left:1.3em;margin:6px 0}
+.rules li{margin:4px 0;font-size:14px}
+details summary{cursor:pointer;color:var(--ink2);font-size:14px;font-weight:700;min-height:28px}
+.center{text-align:center}
+.muted{color:var(--ink3)}
+.hint{font-size:13px;color:var(--ink2);border-left:3px solid var(--kin);padding:2px 0 2px 10px;margin:8px 0}
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms!important;animation-delay:0s!important} }
+</style>
+</head>
+<body>
+<div id="net" class="net" hidden>通信が切れています。再接続中…</div>
+<div class="wrap">
+  <header class="bar" id="bar"></header>
+  <main id="app"></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+"use strict";
+const SUPABASE_URL = "https://sgylbahmregnpzylsbtf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-fD7ys_YTYLvJPdXWGCbCg_vNKYbaZg";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------- ルール設定 ---------- */
+const FORMS = {
+  tanka:   {label:"短歌", pattern:[5,7,5,7,7]},
+  haiku:   {label:"俳句", pattern:[5,7,5], note:"季語が必要です"},
+  dodoitsu:{label:"都々逸", pattern:[7,7,7,5]},
+  senryu:  {label:"川柳", pattern:[5,7,5]},
+};
+const MODES = {
+  tanka:  {label:"短歌", n5:3, n7:4, forms:["tanka"], desc:"五音3枚・七音4枚のパック。57577の短歌を作ります。"},
+  senryu: {label:"川柳", n5:3, n7:2, forms:["senryu"], desc:"五音3枚・七音2枚のパック。575で作ります。少人数向き。"},
+  legacy: {label:"レガシー", n5:3, n7:4, forms:["tanka","haiku","dodoitsu"], desc:"短歌に加え、俳句(575・季語あり)と都々逸(7775)でも上がれます。"},
+};
+const KANSUJI = ["〇","一","二","三","四","五","六","七","八","九","十"];
+
+/* ---------- 状態 ---------- */
+const S = {
+  view:"home", code:null, me:null,
+  room:null, players:[], cards:[], picks:[], poems:[],
+  channel:null, selCard:null, compose:{}, form:null, lastMain:"", busy:false,
+  lastPhase:null, attnKey:null,
+};
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS = {
+  get(k){ try{ return localStorage.getItem(k) }catch{ return null } },
+  set(k,v){ try{ localStorage.setItem(k,v) }catch{} },
+  del(k){ try{ localStorage.removeItem(k) }catch{} },
+};
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2800); }
+function hideToast(){ clearTimeout(toast._t); $("#toast").hidden=true; }
+function uuid(){ return (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(+c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>+c/4).toString(16))); }
+function buzz(){ try{ navigator.vibrate?.([90,60,90]); }catch{} }
+
+/* ---------- 通信状態の表示 ---------- */
+const NET = {offline:!navigator.onLine, channelDown:false, fetchFail:false};
+function updateNet(){ $("#net").hidden = !(NET.offline || ((NET.channelDown||NET.fetchFail) && S.code)); }
+addEventListener("offline",()=>{ NET.offline=true; updateNet(); });
+addEventListener("online",()=>{ NET.offline=false; updateNet(); if(S.code){ subscribe(S.code); fetchAll(); } });
+
+/* ---------- 画面を消さない（Wake Lock） ---------- */
+let wakeLock=null;
+async function keepAwake(){
+  if(!S.code || wakeLock || !("wakeLock" in navigator) || document.visibilityState!=="visible") return;
+  try{ wakeLock=await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release",()=>{ wakeLock=null; }); }catch{}
+}
+
+/* ---------- 音（モーラ）の数え方 ----------
+   かなは正確に数える（小さいゃゅょ等は前の字とまとめて1音）。
+   漢字は1字＝1〜2音として幅で見積もる。英数字が入るときは表示しない。 */
+const SMALL = new Set("ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ");
+function moraEst(s){
+  let c=0, k=0, unknown=false;
+  for(const ch of s.replace(/\s/g,"")){
+    if(/[ぁ-ゖァ-ヺー]/.test(ch)){ if(!SMALL.has(ch)) c++; }
+    else if(/[一-鿿㐀-䶿々〆ヶ]/.test(ch)) k++;
+    else if(/[、。！？!?・「」『』,.\-~〜…（）()]/.test(ch)){}
+    else unknown=true;
+  }
+  return {min:c+k, max:c+2*k, exact:k===0, unknown};
+}
+function moraLabel(text, target){
+  if(!text.trim()) return {cls:"", txt:`${target}音`};
+  const e=moraEst(text);
+  if(e.unknown) return {cls:"", txt:""};
+  if(e.exact){
+    if(e.min===target) return {cls:"ok", txt:`${e.min}音 ✓`};
+    if(e.min===target+1) return {cls:"warn", txt:`${e.min}音<br>字余り`};
+    return {cls:"ng", txt:`${e.min}音`};
+  }
+  const range = e.min===e.max ? `約${e.min}音` : `約${e.min}〜${e.max}音`;
+  if(target>=e.min && target<=e.max+1) return {cls:"", txt:range};
+  return {cls:"warn", txt:range};
+}
+
+/* ---------- 派生データ ---------- */
+function mode(){ return MODES[S.room?.mode] || MODES.tanka; }
+function packSize(){ const m=mode(); return m.n5+m.n7; }
+function nameOf(id){ return S.players.find(p=>p.id===id)?.name || "（退出）"; }
+function seats(){ return S.room?.seats || []; }
+function game(){ return S.room?.game || 1; }
+function gCards(){ return S.cards.filter(c=>c.game===game()); }
+function gPicks(){ return S.picks.filter(p=>p.game===game()); }
+function gPoems(){ return S.poems.filter(p=>p.game===game()); }
+function submittedSet(){
+  const P=packSize(), cnt={};
+  for(const c of gCards()) cnt[c.origin]=(cnt[c.origin]||0)+1;
+  return new Set(Object.keys(cnt).filter(k=>cnt[k]>=P));
+}
+function phase(){
+  if(!S.room) return "home";
+  if(S.room.status==="lobby") return "lobby";
+  const n=seats().length, P=packSize();
+  if(submittedSet().size < n) return "writing";
+  if(gPicks().length < n*P) return "drafting";
+  if(gPoems().length < n) return "composing";
+  return "reveal";
+}
+function isHost(){
+  if(!S.room) return false;
+  if(S.room.host_id===S.me) return true;
+  const hostHere = S.players.some(p=>p.id===S.room.host_id);
+  if(hostHere) return false;
+  const first=[...S.players].sort((a,b)=>a.ord-b.ord)[0];
+  return first?.id===S.me;
+}
+function inGame(){ return seats().includes(S.me); }
+function myHand(){
+  const ids=gPicks().filter(p=>p.player_id===S.me).sort((a,b)=>a.round-b.round).map(p=>p.card_id);
+  return ids.map(id=>S.cards.find(c=>c.id===id)).filter(Boolean);
+}
+function joinNames(ids){ return ids.map(id=>`${esc(nameOf(id))}さん`).join("、"); }
+
+/* ---------- 通信 ---------- */
+async function fetchAll(){
+  const code=S.code; if(!code) return;
+  let r,p,c,k,m;
+  try{
+    [r,p,c,k,m] = await Promise.all([
+      sb.from("rooms").select("*").eq("code",code).maybeSingle(),
+      sb.from("players").select("*").eq("room_code",code).order("ord"),
+      sb.from("cards").select("*").eq("room_code",code),
+      sb.from("picks").select("*").eq("room_code",code),
+      sb.from("poems").select("*").eq("room_code",code),
+    ]);
+  }catch(e){ NET.fetchFail=true; updateNet(); return; }
+  if(code!==S.code) return;
+  const err=r.error||p.error||c.error||k.error||m.error;
+  NET.fetchFail=!!err; updateNet();
+  if(err){ console.warn(err); return; }
+  if(!r.data){ leaveRoom(true); toast("部屋が見つかりません"); return; }
+  S.room=r.data; S.players=p.data; S.cards=c.data; S.picks=k.data; S.poems=m.data;
+  if(!S.players.some(x=>x.id===S.me) && S.view==="room"){ toast("部屋から外れました"); leaveRoom(true); return; }
+  render();
+}
+let refreshT=null;
+function scheduleRefresh(){ clearTimeout(refreshT); refreshT=setTimeout(fetchAll,120); }
+function subscribe(code){
+  if(S.channel) sb.removeChannel(S.channel);
+  const ch=sb.channel("room-"+code+"-"+Math.random().toString(36).slice(2,7));
+  ch.on("postgres_changes",{event:"*",schema:"public",table:"rooms",filter:`code=eq.${code}`},scheduleRefresh);
+  for(const t of ["players","cards","picks","poems"])
+    ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:`room_code=eq.${code}`},scheduleRefresh);
+  for(const t of ["cards","poems","players"])
+    ch.on("postgres_changes",{event:"DELETE",schema:"public",table:t},scheduleRefresh);
+  ch.subscribe(status=>{
+    if(status==="SUBSCRIBED"){ NET.channelDown=false; updateNet(); scheduleRefresh(); }
+    else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){ NET.channelDown=true; updateNet(); }
+  });
+  S.channel=ch;
+}
+setInterval(()=>{ if(S.code && document.visibilityState==="visible") fetchAll(); }, 6000);
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible" && S.code){ fetchAll(); keepAwake(); } });
+
+async function enterRoom(code, me){
+  S.code=code; S.me=me; S.view="room"; S.lastMain=""; S.selCard=null; S.compose={}; S.attnKey=null; S.lastPhase=null;
+  LS.set("waka:room",code); LS.set("waka:me:"+code, me);
+  const u=new URL(location.href); u.searchParams.set("room",code); history.replaceState(null,"",u);
+  subscribe(code);
+  keepAwake();
+  await fetchAll();
+}
+function leaveRoom(silent){
+  if(S.channel) sb.removeChannel(S.channel);
+  if(S.code) LS.del("waka:room");
+  try{ wakeLock?.release(); }catch{} wakeLock=null;
+  NET.channelDown=false; NET.fetchFail=false;
+  Object.assign(S,{view:"home",code:null,room:null,players:[],cards:[],picks:[],poems:[],channel:null,lastMain:""});
+  const u=new URL(location.href); u.searchParams.delete("room"); history.replaceState(null,"",u);
+  updateNet(); render();
+}
+
+/* ---------- 操作 ---------- */
+async function guard(fn){
+  if(S.busy) return; S.busy=true;
+  try{ await fn(); } catch(e){ console.error(e); toast(e.message||"エラーが発生しました"); }
+  finally{ S.busy=false; }
+}
+const ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function genCode(){ let s=""; const a=crypto.getRandomValues(new Uint8Array(4)); for(const b of a) s+=ALPHA[b%ALPHA.length]; return s; }
+
+const actions = {
+  async create(){
+    const name=$("#name").value.trim();
+    if(!name) return setErr("名前を入れてください");
+    LS.set("waka:name",name);
+    const me=uuid();
+    let code;
+    for(let i=0;i<5;i++){
+      code=genCode();
+      const {error}=await sb.from("rooms").insert({code, host_id:me});
+      if(!error) break;
+      if(i===4) throw error;
+    }
+    const {error}=await sb.from("players").insert({id:me, room_code:code, name});
+    if(error) throw error;
+    await enterRoom(code, me);
+  },
+  async join(){
+    const name=$("#name").value.trim();
+    const code=($("#code").value||"").trim().toUpperCase();
+    if(!/^[A-Z0-9]{4}$/.test(code)) return setErr("部屋コードは4文字です");
+    const {data:room}=await sb.from("rooms").select("*").eq("code",code).maybeSingle();
+    if(!room) return setErr("その部屋は見つかりません");
+    const saved=LS.get("waka:me:"+code);
+    if(saved){
+      const {data:p}=await sb.from("players").select("id").eq("id",saved).maybeSingle();
+      if(p) return enterRoom(code, saved);
+    }
+    if(room.status!=="lobby"){
+      S.rejoin={code, room};
+      const {data:ps}=await sb.from("players").select("*").eq("room_code",code).order("ord");
+      S.rejoin.players=ps||[];
+      S.view="rejoin"; render(); return;
+    }
+    if(!name) return setErr("名前を入れてください（参加にも必要です）");
+    LS.set("waka:name",name);
+    const me=uuid();
+    const {error}=await sb.from("players").insert({id:me, room_code:code, name});
+    if(error) throw error;
+    await enterRoom(code, me);
+  },
+  async rejoinAs(el){ await enterRoom(S.rejoin.code, el.dataset.id); },
+  back(){ S.view="home"; render(); },
+  async leave(){
+    const playing = S.room?.status==="playing" && inGame() && phase()!=="reveal";
+    const msg = playing
+      ? "対局中に抜けると、他の人の進行が止まってしまいます。\n戻るときは同じ部屋コードで入り直し、自分の名前を選べば再開できます。\n\n退出しますか？"
+      : "部屋を出ますか？";
+    if(!confirm(msg)) return;
+    if(S.room?.status==="lobby"){ await sb.from("players").delete().eq("id",S.me); LS.del("waka:me:"+S.code); }
+    leaveRoom();
+  },
+  async share(){
+    const url=roomUrl();
+    if(navigator.share){ try{ await navigator.share({title:"和歌ドラフト", text:`部屋コード ${S.code}`, url}); }catch{} }
+    else { await navigator.clipboard?.writeText(url); toast("URLをコピーしました"); }
+  },
+  async setMode(el){
+    if(!isHost()) return;
+    await sb.from("rooms").update({mode:el.dataset.mode}).eq("code",S.code).eq("status","lobby");
+    scheduleRefresh();
+  },
+  async move(el){
+    const ps=[...S.players].sort((a,b)=>a.ord-b.ord);
+    const i=ps.findIndex(p=>p.id===el.dataset.id), j=i+(+el.dataset.dir);
+    if(j<0||j>=ps.length) return;
+    const a=ps[i], b=ps[j];
+    await sb.from("players").update({ord:b.ord}).eq("id",a.id);
+    await sb.from("players").update({ord:a.ord}).eq("id",b.id);
+    scheduleRefresh();
+  },
+  async shuffle(){
+    const ps=[...S.players]; const ords=ps.map(p=>p.ord);
+    for(let i=ps.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [ps[i],ps[j]]=[ps[j],ps[i]]; }
+    await Promise.all(ps.map((p,i)=>sb.from("players").update({ord:ords[i]}).eq("id",p.id)));
+    scheduleRefresh();
+  },
+  async kick(el){
+    if(!confirm(`${nameOf(el.dataset.id)} さんを外しますか？`)) return;
+    await sb.from("players").delete().eq("id",el.dataset.id);
+    scheduleRefresh();
+  },
+  async start(){
+    const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
+    if(ids.length<2 && !confirm("1人で始めますか？（動作確認用）")) return;
+    if(ids.length===2 && !confirm("2人だとパックを交換し合うだけになります。3人以上がおすすめですが、始めますか？")) return;
+    const {error}=await sb.from("rooms").update({status:"playing", seats:ids, reveal:-1}).eq("code",S.code).eq("status","lobby");
+    if(error) throw error;
+    scheduleRefresh();
+  },
+  async submitPack(){
+    const rows=[];
+    const vals=readPackInputs();
+    for(let i=0;i<vals.length;i++){
+      const v=vals[i].text.trim();
+      if(!v) return toast("空欄があります");
+      if(v.length>40) return toast("1句は40文字までです");
+      rows.push({room_code:S.code, game:game(), origin:S.me, slot:i, len:vals[i].len, text:v});
+    }
+    const {error}=await sb.from("cards").insert(rows);
+    if(error) throw error;
+    LS.del(draftKey());
+    scheduleRefresh();
+  },
+  async editPack(){
+    const mine=gCards().filter(c=>c.origin===S.me).sort((a,b)=>a.slot-b.slot);
+    LS.set(draftKey(), JSON.stringify(mine.map(c=>c.text)));
+    await sb.from("cards").delete().eq("room_code",S.code).eq("game",game()).eq("origin",S.me);
+    S.lastMain=""; scheduleRefresh();
+  },
+  pickSel(el){ S.selCard=el.dataset.id; S.lastMain=""; render(); },
+  async pick(){
+    if(!S.selCard) return;
+    const r=myHand().length;
+    const {error}=await sb.from("picks").insert({room_code:S.code, game:game(), player_id:S.me, round:r, card_id:S.selCard});
+    S.selCard=null; S.lastMain="";
+    if(error){ toast("選べませんでした。もう一度どうぞ"); }
+    scheduleRefresh();
+  },
+  setForm(el){ S.form=el.dataset.form; S.compose={}; S.lastMain=""; render(); },
+  place(el){
+    const id=el.dataset.id, card=S.cards.find(c=>c.id===id);
+    const pat=FORMS[curForm()].pattern;
+    if(Object.values(S.compose).includes(id)){ // 使用中なら外す
+      for(const k in S.compose) if(S.compose[k]===id) delete S.compose[k];
+    } else {
+      const i=pat.findIndex((len,idx)=>len===card.len && !S.compose[idx]);
+      if(i<0){
+        if(!pat.includes(card.len)) toast(`この形式に${KANSUJI[card.len]}音の枠はありません`);
+        else toast(`${KANSUJI[card.len]}音の枠は埋まっています。枠をタップして外してから入れてください`);
+        return;
+      }
+      S.compose[i]=id;
+    }
+    S.lastMain=""; render();
+  },
+  unslot(el){ delete S.compose[el.dataset.i]; S.lastMain=""; render(); },
+  swapUp(el){
+    const i=+el.dataset.i, pat=FORMS[curForm()].pattern;
+    for(let j=i-1;j>=0;j--) if(pat[j]===pat[i]){ [S.compose[i],S.compose[j]]=[S.compose[j],S.compose[i]]; break; }
+    for(const k in S.compose) if(!S.compose[k]) delete S.compose[k];
+    S.lastMain=""; render();
+  },
+  async submitPoem(el){
+    const f=curForm(), pat=FORMS[f].pattern;
+    let lines=pat.map((_,i)=>S.cards.find(c=>c.id===S.compose[i])?.text);
+    if(el?.dataset.short){
+      if(!confirm("空いた枠は「……」のまま公開されます。字足らずで出しますか？")) return;
+      lines=lines.map(l=>l||"……");
+    }
+    if(lines.some(l=>!l)) return toast("すべての枠を埋めてください");
+    const {error}=await sb.from("poems").insert({room_code:S.code, game:game(), player_id:S.me, form:f, lines});
+    if(error) throw error;
+    scheduleRefresh();
+  },
+  async unsubmitPoem(){
+    await sb.from("poems").delete().eq("room_code",S.code).eq("game",game()).eq("player_id",S.me);
+    S.lastMain=""; scheduleRefresh();
+  },
+  /* 公開の進み方（rooms.reveal）
+     -1 = 準備完了 / 偶数 2i = i首目の歌だけ表示 / 奇数 2i+1 = i首目の詠み人も表示 / 2n = 今局の歌一覧 */
+  async revealNext(){
+    const cur=S.room.reveal;
+    await sb.from("rooms").update({reveal:cur+1}).eq("code",S.code).eq("reveal",cur).eq("game",game());
+    scheduleRefresh();
+  },
+  async nextGame(){
+    if(!confirm("同じメンバーでもう一局始めますか？")) return;
+    const g=game();
+    const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
+    await sb.from("rooms").update({game:g+1, reveal:-1, seats:ids}).eq("code",S.code).eq("game",g);
+    S.compose={}; S.form=null; S.selCard=null; scheduleRefresh();
+  },
+  async toLobby(){
+    if(!confirm("待合室に戻りますか？（メンバーの入れ替えや形式の変更ができます）")) return;
+    const g=game();
+    await sb.from("rooms").update({status:"lobby", game:g+1, reveal:-1}).eq("code",S.code).eq("game",g);
+    S.compose={}; S.form=null; scheduleRefresh();
+  },
+};
+function setErr(m){ const e=$("#err"); if(e) e.textContent=m; }
+function roomUrl(){ const u=new URL(location.href); u.search=""; u.hash=""; u.searchParams.set("room",S.code); return u.toString(); }
+function draftKey(){ return `waka:draft:${S.code}:${game()}:${S.me}`; }
+function packSlots(){ const m=mode(); return [...Array(m.n5).fill(5), ...Array(m.n7).fill(7)]; }
+function readPackInputs(){ return packSlots().map((len,i)=>({len, text:($(`#ph${i}`)?.value)||""})); }
+function curForm(){ const fs=mode().forms; return fs.includes(S.form)?S.form:fs[0]; }
+
+/* ---------- 描画 ---------- */
+function render(){
+  renderBar();
+  const app=$("#app");
+  let html="", ph=S.view;
+  if(S.view==="home") html=vHome();
+  else if(S.view==="rejoin") html=vRejoin();
+  else if(!S.room) html=`<div class="waitbox"><div class="brush"></div><div>読み込み中…</div></div>`;
+  else {
+    ph=phase();
+    html = ({lobby:vLobby, writing:vWriting, drafting:vDrafting, composing:vComposing, reveal:vReveal})[ph]();
+  }
+  // 画面が切り替わったら、前の画面の通知は消す
+  if(ph!==S.lastPhase){ if(S.lastPhase) hideToast(); S.lastPhase=ph; }
+  attention(ph);
+  // 入力欄がある画面では、内容が変わった時だけ書き換える（入力中の文字を消さないため）
+  const [main, status=""] = html.split("<!--STATUS-->");
+  if(main!==S.lastMain){
+    app.innerHTML = main + `<div id="status">${status}</div>`;
+    S.lastMain=main;
+    afterRender();
+  } else {
+    const st=$("#status"); if(st && st.innerHTML!==status) st.innerHTML=status;
+  }
+}
+/* 自分の番が来た・場面が変わった時にスマホを振動させる */
+function attention(ph){
+  let key=null;
+  if(S.room && inGame()){
+    if(ph==="drafting"){
+      const st=draftState();
+      if(st.ready) key=`d${game()}-${st.r}`;
+    } else if(ph==="writing"||ph==="composing"||ph==="reveal"||ph==="lobby") key=`${ph}${game()}`;
+  }
+  if(key && key!==S.attnKey){
+    if(S.attnKey!==null && document.visibilityState==="visible") buzz();
+    S.attnKey=key;
+  }
+}
+function renderBar(){
+  const bar=$("#bar");
+  const me=S.players.find(p=>p.id===S.me);
+  bar.innerHTML = `<div class="brand"><span class="seal">和</span>和歌ドラフト</div>` +
+    (S.view==="room"&&S.room ? `<div class="row" style="flex:none;gap:10px"><div class="meta">部屋 <b>${esc(S.code)}</b><span class="who">${esc(me?.name||"")}</span></div><button class="exitbtn" data-a="leave">退出</button></div>` : "");
+}
+function afterRender(){
+  const q=$("#qr");
+  if(q && window.qrcode){ const qr=qrcode(0,"M"); qr.addData(roomUrl()); qr.make(); q.innerHTML=qr.createSvgTag({cellSize:4, margin:2, scalable:true}); }
+  document.querySelectorAll("input[data-len]").forEach(inp=>{
+    const upd=()=>{
+      const l=moraLabel(inp.value, +inp.dataset.len), c=inp.parentElement.querySelector(".cnt");
+      c.className="cnt "+l.cls; c.innerHTML=l.txt;
+    };
+    upd();
+    inp.addEventListener("input",()=>{ upd(); LS.set(draftKey(), JSON.stringify(readPackInputs().map(v=>v.text))); });
+  });
+  const ni=$("#name"); if(ni && !ni.value) ni.value=LS.get("waka:name")||"";
+}
+
+function vHome(){
+  const pre=new URLSearchParams(location.search).get("room")||"";
+  return `
+  <h1>和歌ドラフト</h1>
+  <p class="sub">持ち寄った五音・七音の言葉を回し取り、<br>手札で一首ひねり出す遊び。</p>
+  <div class="panel stack">
+    <div><label class="f" for="name">あなたの名前（作る人も入る人も必要）</label><input id="name" class="t" maxlength="20" autocomplete="nickname" placeholder="例：在原"></div>
+    ${pre ? `
+      <div><label class="f" for="code">部屋コード</label><input id="code" class="t code" maxlength="4" value="${esc(pre)}" autocomplete="off"></div>
+      <button class="btn primary" data-a="join">この部屋に入る</button>
+      <div class="divider">または</div>
+      <button class="btn ghost" data-a="create">新しく部屋を作る</button>
+    ` : `
+      <button class="btn primary" data-a="create">部屋を作る</button>
+      <div class="divider">招待された人は</div>
+      <div><label class="f" for="code">部屋コード（4文字）</label>
+      <div class="row"><input id="code" class="t code" maxlength="4" placeholder="ABCD" autocomplete="off"><button class="btn" style="flex:.6" data-a="join">入る</button></div></div>
+    `}
+    <div class="err" id="err"></div>
+  </div>
+  <details class="panel rules"><summary>遊び方</summary>
+    <ol>
+      <li>各自スマホで、五音の言葉3つ・七音の言葉4つを書いて「パック」を作る（何でもOK）。</li>
+      <li>パックは隣の人へ。回ってきたパックから1枚だけ取り、残りをまた隣へ。これを7回。</li>
+      <li>集めた7枚のうち5枚で、五・七・五・七・七の短歌を組む。</li>
+      <li>全員そろったら一首ずつめくり、読み上げて、詠み人を当て合う。</li>
+    </ol>
+    <p class="sub">中身は自分にしか見えません。相手に渡したくない札をあえて取る「カット」も戦術のうち。7人だと自分のパックの余りが戻ってきて面白いとか。</p>
+  </details>`;
+}
+function vRejoin(){
+  const r=S.rejoin;
+  return `<h2>対局中の部屋です</h2><p class="sub">途中参加はできません。スマホを替えた・閉じてしまった人は、自分の名前を選んで戻れます。</p>
+  <div class="panel" style="padding:6px 12px"><ul class="plist">${r.players.filter(p=>r.room.seats.includes(p.id)).map(p=>`<li><span class="nm">${esc(p.name)}</span><button class="btn small" data-a="rejoinAs" data-id="${p.id}">この人として戻る</button></li>`).join("")}</ul></div>
+  <button class="btn ghost" data-a="back">戻る</button>`;
+}
+
+function vLobby(){
+  const host=isHost(), ps=[...S.players].sort((a,b)=>a.ord-b.ord), m=mode();
+  return `
+  <div class="panel codebox">
+    <div class="sub">部屋コード</div>
+    <div class="c">${esc(S.code)}</div>
+    <div class="qr" id="qr"></div>
+    <div class="sub">カメラで読み取るか、コードを入力して参加</div>
+    <div style="margin-top:10px"><button class="btn small" style="margin:0 auto" data-a="share">URLを送る</button></div>
+  </div>
+  <h3>形式</h3>
+  <div class="seg">${Object.entries(MODES).map(([k,v])=>`<button data-a="setMode" data-mode="${k}" class="${S.room.mode===k?"on":""}" ${host?"":"disabled"}>${v.label}</button>`).join("")}</div>
+  <p class="sub" style="margin-top:6px">${esc(m.desc)}</p>
+  <h3>参加者 ${ps.length}人 <span class="muted" style="font-weight:400">— この順にパックが回ります</span></h3>
+  <div class="panel" style="padding:4px 12px">
+    <ul class="plist">${ps.map((p,i)=>`<li>
+      <span class="num">${i+1}</span><span class="nm">${esc(p.name)}</span>
+      ${p.id===S.me?`<span class="tag me">あなた</span>`:""}${p.id===S.room.host_id?`<span class="tag">親</span>`:""}
+      ${host?`<button class="iconbtn" data-a="move" data-id="${p.id}" data-dir="-1" ${i===0?"disabled":""} aria-label="上へ">↑</button><button class="iconbtn" data-a="move" data-id="${p.id}" data-dir="1" ${i===ps.length-1?"disabled":""} aria-label="下へ">↓</button>${p.id!==S.me?`<button class="iconbtn" data-a="kick" data-id="${p.id}" aria-label="外す">×</button>`:""}`:""}
+    </li>`).join("")}</ul>
+  </div>
+  ${host?`<div class="note">実際に座っている順に並べると雰囲気が出ます（最後の人の次は1番の人へ）。</div>
+  ${ps.length<3?`<div class="note warn">3人以上がおすすめです。2人だとパックを交換し合うだけになります。</div>`:""}
+  <button class="btn ghost small" data-a="shuffle">順番をシャッフル</button>
+  <div class="sticky"><button class="btn primary" data-a="start">${ps.length}人で始める</button></div>`
+  :`<div class="waitbox"><div class="brush"></div><div><span class="waitname">${esc(nameOf(S.room.host_id))}</span>さん（親）が<br>始めるのを待っています</div></div>`}`;
+}
+
+function progressList(fn){
+  return `<div class="panel" style="padding:4px 12px"><ul class="plist">${seats().map(id=>{
+    const st=fn(id);
+    return `<li><span class="nm">${esc(nameOf(id))}</span>${id===S.me?`<span class="tag me">あなた</span>`:""}<span class="tag ${st.cls}">${st.txt}</span></li>`;
+  }).join("")}</ul></div>`;
+}
+
+function vWriting(){
+  if(!inGame()) return vSpectate("各自がパックを作っています");
+  const done=submittedSet();
+  const waiting=seats().filter(id=>!done.has(id));
+  const status=`<h3>みんなの準備</h3>`+progressList(id=>done.has(id)?{cls:"done",txt:"提出済み"}:{cls:done.has(S.me)?"slow":"wait",txt:"作成中"});
+  if(done.has(S.me)){
+    const mine=gCards().filter(c=>c.origin===S.me).sort((a,b)=>a.slot-b.slot);
+    return `<div class="waitbox"><div class="brush"></div><div>あと <span class="waitname">${joinNames(waiting)}</span> 待ち</div><p class="sub" style="margin-top:6px">全員がそろうとドラフトが始まります</p></div>
+    <h3>あなたのパック</h3>
+    <div class="panel"><div class="hand">${mine.map(c=>`<span class="chip c${c.len}">${esc(c.text)}</span>`).join("")}</div>
+    <div style="margin-top:12px"><button class="btn small ghost" data-a="editPack">書き直す</button></div></div>
+    <!--STATUS-->${status}`;
+  }
+  let draft=[]; try{ draft=JSON.parse(LS.get(draftKey())||"[]"); }catch{}
+  const m=mode();
+  const ph5=["夜明けまで","カレー食う","さようなら","星空に","鬼瓦"], ph7=["願いを込めて","蛙飛び込む","札束の海","締め切りは明日","全部夢だった"];
+  return `<h2>パックを作る</h2>
+  <p class="sub">五音${m.n5}つ・七音${m.n7}つ。和歌っぽくなくて大丈夫。流行語、昨日の夕飯、何でも。</p>
+  <div class="panel">
+    ${packSlots().map((len,i)=>`<div class="phr"><span class="k k${len}">${KANSUJI[len]}</span><input id="ph${i}" class="t" data-len="${len}" maxlength="40" value="${esc(draft[i]||"")}" placeholder="${esc((len===5?ph5:ph7)[i%5])}"><span class="cnt"></span></div>`).join("")}
+    <p class="sub" style="font-size:12px;margin:6px 0 0">かなは自動で数えます。漢字入りは「約◯〜◯音」の目安です。多少の字余りはOK。</p>
+  </div>
+  <div class="sticky"><button class="btn primary" data-a="submitPack">このパックで提出</button></div>
+  <!--STATUS-->${status}`;
+}
+
+function vSpectate(msg){
+  return `<div class="waitbox"><div class="brush"></div><div>${esc(msg)}</div><p class="sub" style="margin-top:8px">あなたはこの局には参加していません。公開の時に歌を見られます。</p></div>`;
+}
+
+function draftState(){
+  const n=seats().length, P=packSize(), si=seats().indexOf(S.me);
+  const hand=myHand(), r=hand.length;
+  if(si<0) return {n,P,si,hand,r,ready:false,pack:[]};
+  const origin=seats()[((si-r)%n+n)%n];
+  const picked=new Set(gPicks().map(p=>p.card_id));
+  const pack=gCards().filter(c=>c.origin===origin && !picked.has(c.id)).sort((a,b)=>a.id<b.id?-1:1);
+  return {n,P,si,hand,r,pack,ready: r<P && pack.length===P-r};
+}
+function vDrafting(){
+  if(!inGame()) return vSpectate("ドラフト中です");
+  const {n,P,si,hand,r,pack,ready}=draftState();
+  const nextName=nameOf(seats()[(si+1)%n]), prevName=nameOf(seats()[(si-1+n)%n]);
+  const counts=id=>gPicks().filter(p=>p.player_id===id).length;
+  const minC=Math.min(...seats().map(counts));
+  const status=`<h3>みんなの進み具合</h3>`+progressList(id=>{const c=counts(id); return c>=P?{cls:"done",txt:"完了"}:{cls:(c===minC&&seats().some(x=>counts(x)>c))?"slow":"wait",txt:`${c}/${P}`};});
+  const m=mode(), h5=hand.filter(c=>c.len===5).length, h7=hand.filter(c=>c.len===7).length;
+  const need=FORMS[m.forms[0]].pattern, need5=need.filter(x=>x===5).length, need7=need.filter(x=>x===7).length;
+  const handHtml=`<h3>手札 ${r}枚 <span class="muted" style="font-weight:400">（五 ${h5}/${need5}・七 ${h7}/${need7} 必要）</span></h3>
+    <div class="hand">${hand.map(c=>`<span class="chip c${c.len}">${esc(c.text)}</span>`).join("")||`<span class="muted">まだありません</span>`}</div>`;
+  const dots=`<div class="dots">${Array.from({length:P},(_,i)=>`<i class="${i<r?"on":""}"></i>`).join("")}</div>`;
+  if(r>=P){
+    const slow=seats().filter(id=>counts(id)<P);
+    return `<div class="waitbox"><div class="brush"></div><div>あなたのドラフトは完了。<br>あと <span class="waitname">${joinNames(slow)}</span> 待ち</div></div>${handHtml}<!--STATUS-->${status}`;
+  }
+  const head=`<div class="round"><div><span class="big">第${KANSUJI[r+1]}巡</span><span class="of">/ ${P}</span></div>${dots}</div>`;
+  if(!ready){
+    return `${head}<div class="waitbox"><div class="brush"></div><div><span class="waitname">${esc(prevName)}</span>さんが選んでいます…</div><p class="sub">選び終わるとパックが回ってきます（スマホが震えます）</p></div>${handHtml}<!--STATUS-->${status}`;
+  }
+  if(S.selCard && !pack.some(c=>c.id===S.selCard)) S.selCard=null;
+  return `${head}
+  <p class="sub">回ってきたパック（${pack.length}枚）。1枚取ると残りは <b>${esc(nextName)}</b> さんへ。</p>
+  ${r===0?`<div class="hint">自分が使う札だけでなく、次の人に渡したくない札をあえて取る「カット」も作戦です。</div>`:""}
+  <div class="cards">${pack.map(c=>`<button class="card c${c.len} ${S.selCard===c.id?"sel":""}" data-a="pickSel" data-id="${c.id}"><span class="k k${c.len}">${KANSUJI[c.len]}</span><span>${esc(c.text)}</span></button>`).join("")}</div>
+  <div class="sticky"><button class="btn primary" data-a="pick" ${S.selCard?"":"disabled"}>${S.selCard?"この札を取る":"札をタップして選んでください"}</button></div>
+  ${handHtml}<!--STATUS-->${status}`;
+}
+
+function vComposing(){
+  if(!inGame()) return vSpectate("みんなが歌を作っています");
+  const done=new Set(gPoems().map(p=>p.player_id));
+  const waiting=seats().filter(id=>!done.has(id));
+  const status=`<h3>みんなの進み具合</h3>`+progressList(id=>done.has(id)?{cls:"done",txt:"詠み終えた"}:{cls:done.has(S.me)?"slow":"wait",txt:"推敲中"});
+  if(done.has(S.me)){
+    const p=gPoems().find(p=>p.player_id===S.me);
+    return `<div class="waitbox" style="padding-bottom:4px"><div>あと <span class="waitname">${joinNames(waiting)}</span> 待ち</div><p class="sub" style="margin-top:4px">全員がそろうと公開です</p></div>
+    ${poemBoard(p,{showAuthor:true})}
+    <button class="btn small ghost" data-a="unsubmitPoem">取り下げて直す</button><!--STATUS-->${status}`;
+  }
+  const m=mode(), f=curForm(), pat=FORMS[f].pattern, hand=myHand();
+  const used=new Set(Object.values(S.compose));
+  const full=pat.every((_,i)=>S.compose[i]);
+  const enough=hand.filter(c=>c.len===5).length>=pat.filter(x=>x===5).length && hand.filter(c=>c.len===7).length>=pat.filter(x=>x===7).length;
+  return `<h2>一首ひねる</h2>
+  ${m.forms.length>1?`<div class="seg" style="margin-bottom:8px">${m.forms.map(k=>`<button data-a="setForm" data-form="${k}" class="${f===k?"on":""}">${FORMS[k].label}</button>`).join("")}</div>`:""}
+  <p class="sub">手札をタップすると枠に入ります。枠をタップで外せます。${FORMS[f].note?`<b>${FORMS[f].note}</b>`:""}</p>
+  ${enough?"":`<div class="note warn">この形式に必要な五音・七音の札が足りません（ドラフトの結果です）。${m.forms.length>1?"別の形式を試すか、":""}埋められる枠だけ埋めて「字足らずで出す」こともできます。</div>`}
+  <div class="slots">${pat.map((len,i)=>{
+    const c=S.cards.find(x=>x.id===S.compose[i]);
+    return `<div class="row" style="gap:6px"><button class="slot ${c?`filled s${len}`:""}" data-a="unslot" data-i="${i}"><span class="k k${len}">${KANSUJI[len]}</span>${c?`<span class="tx">${esc(c.text)}</span>`:`<span class="ph">${KANSUJI[len]}音の札</span>`}</button>${c&&pat.slice(0,i).includes(len)?`<button class="iconbtn" data-a="swapUp" data-i="${i}" aria-label="上の同じ音数の札と入れ替え">⇅</button>`:""}</div>`;
+  }).join("")}</div>
+  <h3>手札</h3>
+  <div class="hand">${hand.map(c=>`<button class="chip c${c.len} ${used.has(c.id)?"used":""}" data-a="place" data-id="${c.id}">${esc(c.text)}</button>`).join("")}</div>
+  <div class="sticky">${!full && !enough && used.size>0
+    ? `<button class="btn primary" data-a="submitPoem" data-short="1">字足らずで出す</button>`
+    : `<button class="btn primary" data-a="submitPoem" ${full?"":"disabled"}>${full?"この歌で決定":"すべての枠を埋めてください"}</button>`}</div>
+  <!--STATUS-->${status}`;
+}
+
+function poemBoard(p, {showAuthor=true, anim=false, stamp=false}={}){
+  return `<div class="shikishi"><span class="form">${esc(FORMS[p.form]?.label||"")}</span>
+    <div class="body"><div class="tate ${anim?"anim":""}">${p.lines.map((l,i)=>`<span style="animation-delay:${(i*0.45+0.15).toFixed(2)}s">${esc(l)}</span>`).join("")}</div></div>
+    ${showAuthor
+      ? `<div class="by ${stamp?"stamp":""}"><span class="seal">詠</span><span class="nm">${esc(nameOf(p.player_id))}</span></div>`
+      : `<div class="by hidden"><span class="seal">詠</span><span class="nm">詠み人は……？</span></div>`}
+  </div>`;
+}
+function vReveal(){
+  const order=seats().map(id=>gPoems().find(p=>p.player_id===id)).filter(Boolean);
+  const n=order.length, s=S.room.reveal;
+  if(s<0){
+    return `<div class="center" style="padding:30px 0 10px"><h2>全員、詠み終えました</h2><p class="sub">${n}首あります。誰かが「めくる」を押すと、全員の画面で一首ずつ公開されます。<br>詠み人は伏せて出るので、当て合ってみてください。</p></div>
+    <div class="sticky"><button class="btn primary" data-a="revealNext">一首目をめくる</button></div>`;
+  }
+  if(s>=2*n){
+    return `<h2>今局の歌</h2><p class="sub">横にスクロールして見返せます。</p>
+    <div class="gallery">${order.map(p=>`<div class="mini"><div class="tate">${p.lines.map(l=>`<span>${esc(l)}</span>`).join("")}</div><div class="who">${esc(nameOf(p.player_id))}・${esc(FORMS[p.form]?.label||"")}</div></div>`).join("")}</div>
+    <div class="stack" style="margin-top:8px"><button class="btn primary" data-a="nextGame">同じメンバーでもう一局</button><button class="btn ghost" data-a="toLobby">待合室へ（メンバー・形式を変える）</button></div>`;
+  }
+  const i=Math.floor(s/2), cur=order[i], shown=s%2===1, last=i>=n-1;
+  // 読み手：詠み人以外から順番に指名
+  const others=seats().filter(id=>id!==cur.player_id);
+  const reader=others.length?others[(i+game())%others.length]:cur.player_id;
+  return `<div class="round"><div><span class="big">${KANSUJI[i+1]||i+1}首目</span><span class="of">/ ${n}</span></div></div>
+  ${!shown?`<div class="reader">読み手：<b>${esc(nameOf(reader))}</b>さん、声に出してどうぞ</div>`:""}
+  ${poemBoard(cur,{showAuthor:shown, anim:!shown, stamp:shown})}
+  <div class="sticky">${!shown
+    ? `<button class="btn primary" data-a="revealNext">詠み人を明かす</button>`
+    : `<button class="btn primary" data-a="revealNext">${last?"今局の歌を見る":"次の歌をめくる"}</button>`}</div>`;
+}
+
+/* ---------- イベント ---------- */
+document.addEventListener("click",e=>{
+  keepAwake();
+  const el=e.target.closest("[data-a]"); if(!el || el.disabled) return;
+  const fn=actions[el.dataset.a]; if(!fn) return;
+  guard(()=>fn(el));
+});
+document.addEventListener("keydown",e=>{
+  if(e.key==="Enter" && e.target.id==="code") guard(()=>actions.join());
+});
+
+/* ---------- 起動 ---------- */
+(async function boot(){
+  updateNet();
+  render();
+  const q=new URLSearchParams(location.search).get("room")?.toUpperCase();
+  const code=q || LS.get("waka:room");
+  if(code){
+    const me=LS.get("waka:me:"+code);
+    if(me){
+      const {data:p}=await sb.from("players").select("id").eq("id",me).maybeSingle();
+      if(p){ await enterRoom(code, me); return; }
+    }
+  }
+})();
+</script>
+</body>
+</html>
