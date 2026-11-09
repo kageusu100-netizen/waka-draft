@@ -116,6 +116,12 @@ table.mv select{padding:3px 4px;border:1px solid var(--line);border-radius:6px;b
 .tag.ng{background:var(--ng-soft);color:var(--ng)}
 details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-bg[hidden]{display:none}
+.modal{background:var(--card);border-radius:14px;padding:18px 20px;width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.modal textarea{width:100%;min-height:340px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:12px;font:inherit;font-size:14px;line-height:1.7;resize:vertical}
+.modal input[type=text]{width:100%;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:7px 10px;min-height:38px}
+.modal label.f{display:block;font-size:13px;font-weight:700;color:var(--ink2);margin:10px 0 4px}
 .tip{position:fixed;z-index:20;background:var(--ink);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:nowrap}
 </style>
 </head>
@@ -167,6 +173,19 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
 </div>
 <div id="toast" class="toast" hidden></div>
 <div id="tip" class="tip" hidden></div>
+<div class="modal-bg" id="msgModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="msgTitle">
+    <h2 id="msgTitle"></h2>
+    <p class="muted small" style="margin:0 0 8px">このままLINEに貼り付けられます。必要なら直してからコピーしてください。</p>
+    <textarea id="msgText" aria-label="連絡文"></textarea>
+    <label class="f" for="msgSign">最後に入れる署名（ジム名・お名前など。次回から自動で入ります）</label>
+    <input type="text" id="msgSign" maxlength="60" placeholder="例：パーソナルジム〇〇　山本">
+    <div class="actions" style="margin:14px 0 0">
+      <button class="btn pri big" id="msgCopy">コピーする</button>
+      <button class="btn" id="msgClose">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -548,7 +567,7 @@ function renderResult(){
     <div class="people">
       ${named.map(p=>{ const s=sum[p.id]; return `<div class="person">
         <div class="ph"><b>${esc(p.name)}</b><span class="muted small">${s.slots.length}回</span><span style="flex:1"></span>
-          ${s.slots.length?`<button class="btn sm" data-msg="${p.id}" title="LINEに貼る文をコピー">連絡文</button>`:""}</div>
+          <button class="btn sm" data-msg="${p.id}" title="LINEに貼る文を作る">連絡文</button></div>
         ${s.slots.map(x=>`<div class="ps">${esc(slotLabel(x))}${warn.get(x)?`<span class="tag ng">${warn.get(x)}</span>`:""}</div>`).join("")}
         ${s.wk.filter(x=>x.short).map(x=>`<div class="ps" style="color:var(--ng)">${x.w.no}週目：入りきらず</div>`).join("")}
         ${s.noAvailWeeks.length?`<div class="ps muted small">空き日なし：${s.noAvailWeeks.map(n=>n+"週目").join("・")}</div>`:""}
@@ -559,11 +578,7 @@ function renderResult(){
       <tbody>${named.map(p=>`<tr><th>${esc(p.name)}</th>${weeks.map(w=>`<td>${Array.from({length:per},(_,k)=>moveSel(p,w,k)).join("<br>")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     </details>
   </div>`;
-  const [,mm]=curMonth.split("-");
-  $$("[data-msg]",el).forEach(b=>b.onclick=()=>{
-    const p=named.find(x=>x.id===b.dataset.msg);
-    copyText(`${p.name}様\n${+mm}月のセッション日程です。\n${sum[p.id].slots.map(s=>"・"+slotLabel(s)).join("\n")}\nよろしくお願いいたします。`, `${p.name}さんへの連絡文をコピーしました`);
-  });
+  $$("[data-msg]",el).forEach(b=>b.onclick=()=>openMessage(named.find(x=>x.id===b.dataset.msg), sum[b.dataset.msg]));
   $$("[data-move]",el).forEach(s=>s.onchange=()=>{
     const pid=s.dataset.move, w=weeks[+s.dataset.w-1], set=new Set(w.dates);
     const sels=$$(`[data-move="${pid}"][data-w="${w.no}"]`,el).map(x=>x.value).filter(Boolean);
@@ -573,6 +588,45 @@ function renderResult(){
     save(); render(); $("#manual")?.setAttribute("open","");
   });
 }
+
+/* ---------- お客さんへの連絡文 ---------- */
+const jpDate = d => { const x=parseD(d); return `${x.getMonth()+1}月${x.getDate()}日(${WD[x.getDay()]})`; };
+const jpDay = d => { const x=parseD(d); return `${x.getMonth()+1}月${x.getDate()}日`; };
+function buildMessage(p, s){
+  const [,mm]=curMonth.split("-"), sign=(DB.settings.sign||"").trim();
+  const name=p.name.trim().replace(/\s*(様|さん|さま)$/,"");
+  const L=[`${name}様`, "", "いつもご利用いただき、ありがとうございます。", "先日はご都合をお知らせいただき、ありがとうございました。", ""];
+  if(s.slots.length){
+    L.push(`${+mm}月のトレーニング日程を、下記のとおりご提案させていただきます。`, "");
+    s.slots.forEach(x=>L.push(`・${jpDate(x.date)} ${hm(x.start)}〜${hm(x.end)}`));
+    L.push("");
+    const short=s.wk.filter(x=>x.short);
+    if(short.length) L.push(`なお、${short.map(x=>`${jpDay(x.w.dates[0])}〜${jpDay(x.w.dates.at(-1))}の週`).join("、")}は、ほかのご予約と重なってしまい調整がつきませんでした。申し訳ございませんが、こちらは改めてご相談させてください。`, "");
+    L.push("こちらの日程でご都合はいかがでしょうか。", "ご都合の悪い日がございましたら、お気軽にお申し付けください。");
+  } else {
+    L.push(`${+mm}月の日程を調整いたしましたが、いただいた日時ではほかのご予約と重なってしまい、ご用意することができませんでした。`, "大変申し訳ございません。", "お手数ですが、ほかにご都合のよい日時がございましたら、お知らせいただけますと幸いです。");
+  }
+  L.push("", "引き続き、どうぞよろしくお願いいたします。");
+  if(sign) L.push("", sign);
+  return L.join("\n");
+}
+function openMessage(p, s){
+  const m=$("#msgModal");
+  $("#msgTitle").textContent=`${p.name}さんへの連絡文`;
+  $("#msgSign").value=DB.settings.sign||"";
+  $("#msgText").value=buildMessage(p,s);
+  m.hidden=false; $("#msgCopy").focus();
+  let edited=false;
+  $("#msgText").oninput=()=>edited=true;
+  $("#msgSign").oninput=()=>{
+    DB.settings.sign=$("#msgSign").value; save();
+    if(!edited) $("#msgText").value=buildMessage(p,s);
+  };
+  $("#msgCopy").onclick=()=>{ copyText($("#msgText").value, `${p.name}さんへの連絡文をコピーしました`); m.hidden=true; };
+}
+$("#msgClose").onclick=()=>$("#msgModal").hidden=true;
+$("#msgModal").onclick=e=>{ if(e.target.id==="msgModal") $("#msgModal").hidden=true; };
+addEventListener("keydown",e=>{ if(e.key==="Escape") $("#msgModal").hidden=true; });
 
 /* ---------- ボタン ---------- */
 function run(seed){
