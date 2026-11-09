@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>日程あわせ</title>
-<meta name="description" content="みんなの空いている日時を集めて、重ならないように自動で割り振る日程調整">
+<meta name="description" content="お客さんの空き日時から、重ならないようにセッションを割り振る">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="日程あわせ">
 <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='46' rx='8' fill='%23256f6a'/%3E%3Crect x='6' y='10' width='52' height='13' rx='6' fill='%23173f3c'/%3E%3Cpath d='M20 38l8 8 16-16' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#f5f3ee; --card:#ffffff; --card2:#efece5; --ink:#1c1e21; --ink2:#4f545b; --ink3:#767b83;
@@ -136,14 +135,8 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2);padding:4px 0
 </div>
 <div id="toast" class="toast" hidden></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 "use strict";
-const SUPABASE_URL = "https://sgylbahmregnpzylsbtf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_-fD7ys_YTYLvJPdXWGCbCg_vNKYbaZg";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 /* ---------- 小道具 ---------- */
 const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
@@ -179,23 +172,6 @@ function availSummary(avail){
   return [...avail].sort((a,b)=>(a.date+a.from).localeCompare(b.date+b.from))
     .map(a=>`${dayLabel(a.date)} ${hm(a.from)}–${hm(a.to)}`).join("、");
 }
-
-async function api(fn, args){
-  const {data, error} = await sb.rpc(fn, args);
-  if(error){
-    const m = error.message||"";
-    if(m.includes("closed")) throw new Error("受付は締め切られています");
-    if(m.includes("forbidden")) throw new Error("権限がありません");
-    throw new Error("通信に失敗しました。時間をおいてもう一度お試しください");
-  }
-  return data;
-}
-
-/* ---------- この端末に覚えておくもの ---------- */
-// 作った予定: sched:mine = [{id, k, title}] ／ お客さんとしての入力: sched:resp:<eventId> = {id, tok}
-const mine = () => LS.get("sched:mine") || [];
-function rememberMine(ev){ const l=mine().filter(x=>x.id!==ev.id); l.unshift(ev); LS.set("sched:mine", l.slice(0,30)); }
-function forgetMine(id){ LS.set("sched:mine", mine().filter(x=>x.id!==id)); }
 
 /* ======================================================
    割り振り
@@ -367,42 +343,80 @@ function validRows(rows){
   return null;
 }
 
-/* ---------- 画面の切り替え ---------- */
-function params(){
-  const q=new URLSearchParams(location.search), h=new URLSearchParams(location.hash.slice(1));
-  return {e:q.get("e"), k:h.get("k")};
+
+/* ======================================================
+   データの保存（この端末のブラウザの中だけ）
+   ====================================================== */
+const KEY="nichitei:v1";
+let storageOK=true;
+function loadDB(){
+  try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d && d.events) return d; }catch{}
+  return {events:{}, backupAt:null, changedAt:null};
 }
-function go(url){ history.pushState(null,"",url); route(); }
-addEventListener("popstate", route);
-$("#homeLink").onclick=ev=>{ ev.preventDefault(); go("./"); };
-let timer=null;
+function saveDB(d){
+  d.changedAt=new Date().toISOString();
+  try{ localStorage.setItem(KEY, JSON.stringify(d)); storageOK=true; }
+  catch{ storageOK=false; toast("保存できませんでした。プライベートブラウズを切ってお試しください"); }
+}
+const listEvents = () => Object.values(loadDB().events).sort((a,b)=>b.created.localeCompare(a.created));
+const getEvent = id => loadDB().events[id] || null;
+function putEvent(ev){ const d=loadDB(); d.events[ev.id]=ev; saveDB(d); }
+function removeEvent(id){ const d=loadDB(); delete d.events[id]; saveDB(d); }
+try{ navigator.storage?.persist?.(); }catch{}
+
+function exportBackup(){
+  const d=loadDB();
+  d.backupAt=new Date().toISOString();
+  try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch{}
+  const blob=new Blob([JSON.stringify({app:"nichitei", version:1, exportedAt:d.backupAt, events:d.events}, null, 1)], {type:"application/json"});
+  const a=document.createElement("a");
+  const t=new Date();
+  a.download=`nichitei-backup-${t.getFullYear()}${pad(t.getMonth()+1)}${pad(t.getDate())}.json`;
+  a.href=URL.createObjectURL(blob);
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+  toast("バックアップを書き出しました");
+}
+function importBackup(file){
+  const fr=new FileReader();
+  fr.onload=()=>{
+    let j; try{ j=JSON.parse(fr.result); }catch{ return toast("このファイルは読み込めません"); }
+    if(!j || j.app!=="nichitei" || !j.events) return toast("日程あわせのバックアップではありません");
+    const n=Object.keys(j.events).length;
+    if(!confirm(`バックアップから${n}件の予定を読み込みます。同じ予定がある場合は上書きされます。よろしいですか？`)) return;
+    const d=loadDB(); Object.assign(d.events, j.events); saveDB(d);
+    toast(`${n}件の予定を読み込みました`); route();
+  };
+  fr.readAsText(file);
+}
+
+/* ---------- 画面の切り替え ---------- */
+const params = () => new URLSearchParams(location.hash.slice(1));
+function go(hash){ if(location.hash!==hash) location.hash=hash; else route(); }
+addEventListener("hashchange", route);
+$("#homeLink").onclick=ev=>{ ev.preventDefault(); go("#"); };
 function route(){
-  clearInterval(timer); timer=null;
   scrollTo(0,0);
-  const {e,k}=params();
-  if(e && k) return viewAdmin(e,k);
-  if(e) return viewRespond(e);
+  const id=params().get("e");
+  if(id) return viewEvent(id);
   return viewHome();
 }
-const baseUrl = () => location.origin + location.pathname;
-const shareUrl = id => `${baseUrl()}?e=${encodeURIComponent(id)}`;
-const adminUrl = (id,k) => `${shareUrl(id)}#k=${encodeURIComponent(k)}`;
 
 /* ---------- 設定フォーム（作成時と変更時で共通） ---------- */
-const DURS=[30,45,60,90,120,150,180,240,300,360];
-const GAPS=[0,15,30,45,60,90,120];
+const DURS=[30,45,60,90,120,150,180,240];
+const GAPS=[0,10,15,30,45,60];
 function settingsFields(st){
   return `
     <label class="f">対象の期間</label>
     <div class="row field"><input type="date" id="s_start" value="${st.start}" aria-label="期間のはじめ"><span class="nogrow muted">〜</span><input type="date" id="s_end" value="${st.end}" aria-label="期間のおわり"></div>
     <div class="row field" style="align-items:flex-start">
-      <div><label class="f" for="s_dur">1件の所要時間</label><select id="s_dur">${DURS.map(m=>`<option value="${m}" ${m===st.duration?"selected":""}>${durLabel(m)}</option>`).join("")}</select></div>
-      <div><label class="f" for="s_gap">前後にあける時間</label><select id="s_gap">${GAPS.map(m=>`<option value="${m}" ${m===st.gap?"selected":""}>${m?durLabel(m):"なし"}</option>`).join("")}</select></div>
+      <div><label class="f" for="s_dur">1回の時間</label><select id="s_dur">${DURS.map(m=>`<option value="${m}" ${m===st.duration?"selected":""}>${durLabel(m)}</option>`).join("")}</select></div>
+      <div><label class="f" for="s_gap">間にあける時間</label><select id="s_gap">${GAPS.map(m=>`<option value="${m}" ${m===st.gap?"selected":""}>${m?durLabel(m):"なし"}</option>`).join("")}</select></div>
     </div>
-    <label class="f">あなたが対応できる時間帯</label>
+    <label class="f">営業時間（セッションを入れられる時間）</label>
     <div class="row field"><select id="s_ds" aria-label="何時から">${timeOpts(st.dayStart)}</select><span class="nogrow muted">〜</span><select id="s_de" aria-label="何時まで">${timeOpts(st.dayEnd)}</select></div>
     <div class="field"><label class="f" for="s_pd">1日に入れる最大件数</label>
-      <select id="s_pd">${[0,1,2,3,4,5,6,8].map(n=>`<option value="${n}" ${n===(st.perDay||0)?"selected":""}>${n?n+"件まで":"制限なし"}</option>`).join("")}</select></div>`;
+      <select id="s_pd">${[0,1,2,3,4,5,6,7,8,10].map(n=>`<option value="${n}" ${n===(st.perDay||0)?"selected":""}>${n?n+"件まで":"制限なし"}</option>`).join("")}</select></div>`;
 }
 function readSettings(old={}){
   const st={...old, start:$("#s_start").value, end:$("#s_end").value, duration:+$("#s_dur").value, gap:+$("#s_gap").value,
@@ -410,228 +424,129 @@ function readSettings(old={}){
   if(!st.start || !st.end) return [null,"期間を入れてください"];
   if(st.start>st.end) return [null,"期間のはじめとおわりが逆です"];
   if(datesBetween(st.start,st.end).length>93) return [null,"期間は3か月以内にしてください"];
-  if(toMin(st.dayEnd)-toMin(st.dayStart) < st.duration) return [null,"対応できる時間帯が所要時間より短いです"];
+  if(toMin(st.dayEnd)-toMin(st.dayStart) < st.duration) return [null,"営業時間が1回の時間より短いです"];
   st.ng=st.ng.filter(d=>d>=st.start&&d<=st.end);
   return [st,null];
 }
+function settingsSummary(st){
+  return `${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1回 ${durLabel(st.duration)}${st.gap?` ・ 間 ${durLabel(st.gap)}`:""} ・ ${hm(st.dayStart)}–${hm(st.dayEnd)}${st.perDay?` ・ 1日${st.perDay}件まで`:""}${st.ng?.length?` ・ 休み${st.ng.length}日`:""}`;
+}
 
 /* ======================================================
-   ホーム：予定を作る
+   ホーム
    ====================================================== */
 function viewHome(){
   document.title="日程あわせ";
   const n=new Date(); const first=new Date(n.getFullYear(), n.getMonth()+1, 1), last=new Date(n.getFullYear(), n.getMonth()+2, 0);
-  const st={start:ymd(first), end:ymd(last), duration:60, gap:0, dayStart:"09:00", dayEnd:"18:00", perDay:0, ng:[]};
-  const list=mine();
+  const st={start:ymd(first), end:ymd(last), duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0, ng:[]};
+  const list=listEvents(), db=loadDB();
+  const needBackup = list.length && (!db.backupAt || (db.changedAt>db.backupAt && Date.now()-new Date(db.backupAt)>7*864e5));
   app.innerHTML = `
-    ${list.length ? `<div class="card"><h2>作った予定</h2><ul class="list">${list.map(x=>`
-      <li><a class="grow" href="${esc(adminUrl(x.id,x.k))}" data-nav style="color:inherit;font-weight:700;text-decoration:none">${esc(x.title)}</a>
+    ${list.length ? `<div class="card"><h2>予定</h2><ul class="list">${list.map(x=>`
+      <li><a class="grow" href="#e=${esc(x.id)}" style="color:inherit;text-decoration:none"><b>${esc(x.title)}</b>
+        <div class="muted small">${x.responses.length}人${x.assignment?" ・ 割り振り済み":""}</div></a>
       <span class="muted small">開く ›</span></li>`).join("")}</ul></div>` : `
     <div class="card">
       <h1>空いている日を集めて、重ならないように割り振る</h1>
       <ol class="steps">
-        <li>期間と1件の所要時間を決めて予定を作る</li>
-        <li>お客さんから聞いた空き日時を入力する（LINEの文面を貼れば読み取ります）。お客さんに専用リンクから入力してもらうこともできます</li>
-        <li>ボタンを押すと、全員の空き時間を見て重ならないように一括で割り振り。入力した順番は関係ないので先着順にはなりません</li>
+        <li>期間と1回の時間を決めて予定を作る</li>
+        <li>お客さんから聞いた空き日時を入力する（LINEの文面を貼れば日時を読み取ります）</li>
+        <li>「日程を割り振る」を押すと、全員の空き時間を見て重ならないように一括で決めます。入力した順番は関係ないので先着順にはなりません</li>
       </ol>
     </div>`}
+    ${needBackup?`<div class="notice warn">しばらくバックアップをとっていません。下の「バックアップ」から書き出しておくと安心です。</div>`:""}
     <form class="card" id="create" autocomplete="off">
       <h2>新しい予定を作る</h2>
       <div class="field"><label class="f" for="title">タイトル</label>
-        <input type="text" id="title" maxlength="100" value="${first.getMonth()+1}月の予定" required></div>
+        <input type="text" id="title" maxlength="100" value="${first.getMonth()+1}月のセッション" required></div>
       ${settingsFields(st)}
-      <button class="btn pri big" id="createBtn">作る</button>
-    </form>`;
-  $$("[data-nav]").forEach(a=>a.onclick=ev=>{ ev.preventDefault(); go(a.getAttribute("href")); });
-  $("#create").onsubmit=async ev=>{
+      <button class="btn pri big">作る</button>
+    </form>
+    <details class="card"><summary>バックアップ</summary>
+      <p class="muted small" style="margin-top:8px">データはこの端末のこのブラウザの中にだけ保存されています（インターネット上には送りません）。機種変更やブラウザのデータ削除に備えて、ときどきファイルに書き出してください。</p>
+      <p class="muted small">最後のバックアップ：${db.backupAt?fmtDT(db.backupAt):"まだありません"}</p>
+      <button class="btn pri wide" id="exp" ${list.length?"":"disabled"}>ファイルに書き出す</button>
+      <label class="btn wide" style="margin-top:8px">ファイルから読み込む<input type="file" id="imp" accept=".json,application/json" hidden></label>
+    </details>`;
+  $("#create").onsubmit=ev=>{
     ev.preventDefault();
     const title=$("#title").value.trim();
     if(!title) return toast("タイトルを入れてください");
     const [s,err]=readSettings(st); if(err) return toast(err);
-    const btn=$("#createBtn"); btn.disabled=true; btn.textContent="作成中…";
-    try{
-      const r=await api("sched_create_event",{p_title:title, p_note:"", p_settings:s});
-      rememberMine({id:r.id, k:r.admin_token, title});
-      go(adminUrl(r.id, r.admin_token));
-    }catch(e){ toast(e.message); btn.disabled=false; btn.textContent="作る"; }
+    const e={id:uuid().slice(0,8), title, settings:s, responses:[], assignment:null, created:new Date().toISOString()};
+    putEvent(e);
+    go("#e="+e.id);
   };
+  $("#exp").onclick=exportBackup;
+  $("#imp").onchange=ev=>{ const f=ev.target.files[0]; if(f) importBackup(f); ev.target.value=""; };
 }
 
 /* ======================================================
-   お客さんの画面（シンプル）
+   予定の画面
    ====================================================== */
-const respondState={editing:null};
-async function viewRespond(id){
-  app.innerHTML=`<span class="spin"></span>`;
-  let ev, my=null;
-  const saved=LS.get("sched:resp:"+id);
-  try{
-    ev=await api("sched_get_event",{p_id:id});
-    if(saved) my=await api("sched_get_my",{p_response_id:saved.id, p_edit_token:saved.tok});
-  }catch(e){ app.innerHTML=`<div class="card empty">${esc(e.message)}</div>`; return; }
-  if(!ev){ app.innerHTML=`<div class="card empty">このページは見つかりませんでした。<br>リンクが正しいか確認してください。</div>`; return; }
-  if(saved && !my) LS.del("sched:resp:"+id);
-  document.title=ev.title;
-  const st=ev.settings;
-  const head=`<div class="card">
-      <h1>${esc(ev.title)}</h1>
-      ${ev.note?`<p style="white-space:pre-wrap;color:var(--ink2)">${esc(ev.note)}</p>`:""}
-      <p class="muted small" style="margin:0">${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1回 ${durLabel(st.duration)}${ev.deadline&&ev.open?` ・ 締切 ${fmtDT(ev.deadline)}`:""}</p>
-    </div>`;
+const A={ev:null, work:null, editing:null};   // work: 画面上で編集中の割り当て / editing: 入力中のお客さんid
 
-  if(my && ev.published){
-    const a=my.assigned;
-    app.innerHTML = head + `<div class="card">
-      <p class="muted" style="margin:0">${esc(my.name)}さんの日程</p>
-      ${a ? `<div class="big-answer">${esc(slotLabel(a))}</div><p class="muted small" style="margin:0">この日時でお待ちしています。</p>`
-          : `<div class="big-answer" style="color:var(--warn)">調整中</div><p class="muted small" style="margin:0">いただいた日時では調整がつきませんでした。あらためてご連絡します。</p>`}
-    </div>`;
-    return;
-  }
-  if(!ev.open || (my && respondState.editing!==id)){
-    app.innerHTML = head + (my ? `<div class="card">
-        <div class="notice ok">受け付けました。ありがとうございます。</div>
-        <h2>${esc(my.name)}さんの空き日時</h2>
-        <p class="small" style="color:var(--ink2)">${esc(availSummary(my.avail))}</p>
-        ${my.comment?`<p class="muted small">ひとこと：${esc(my.comment)}</p>`:""}
-        ${ev.open ? `<button class="btn wide" id="edit">内容を直す</button>` : ""}
-        <p class="muted small" style="margin:10px 0 0">日程が決まったら、このページ（この端末で同じリンク）に表示されます。</p>
-      </div>` : `<div class="card empty">受付は終了しました。</div>`);
-    if($("#edit")) $("#edit").onclick=()=>{ respondState.editing=id; viewRespond(id); };
-    return;
-  }
-
-  const rows = my ? my.avail.map(a=>({...a})) : [];
-  app.innerHTML = head + `
-    <form class="card" id="resp" autocomplete="off">
-      <div class="field"><label class="f" for="name">お名前</label>
-        <input type="text" id="name" maxlength="50" value="${esc(my?.name||LS.get("sched:name")||"")}" placeholder="例：山田 花子" required></div>
-      <label class="f">空いている日時</label>
-      <div id="ed" class="field"></div>
-      <div class="field"><label class="f" for="comment">ひとこと（任意）</label>
-        <input type="text" id="comment" maxlength="500" value="${esc(my?.comment||"")}"></div>
-      <button class="btn pri big" id="send">送信する</button>
-      ${my?`<button type="button" class="btn ghost big" id="cancel" style="margin-top:8px">やめる</button>`:""}
-      <p class="muted small" style="margin:10px 0 0">空いている日が多いほど調整しやすくなります。送った順番は関係ありません。</p>
-    </form>`;
-  availEditor($("#ed"), st, rows);
-  if($("#cancel")) $("#cancel").onclick=()=>{ respondState.editing=null; viewRespond(id); };
-  $("#resp").onsubmit=async e=>{
-    e.preventDefault();
-    const name=$("#name").value.trim();
-    if(!name) return toast("お名前を入れてください");
-    if(!rows.length) return toast("空いている日を1つ以上選んでください");
-    const bad=validRows(rows); if(bad) return toast(bad);
-    const cred = saved && my ? saved : {id:uuid(), tok:token()};
-    const btn=$("#send"); btn.disabled=true;
-    try{
-      await api("sched_submit",{p_event_id:id, p_response_id:cred.id, p_edit_token:cred.tok, p_name:name, p_avail:rows, p_comment:$("#comment").value.trim()});
-      LS.set("sched:resp:"+id, cred); LS.set("sched:name", name);
-      respondState.editing=null;
-      viewRespond(id);
-    }catch(err){ toast(err.message); btn.disabled=false; }
-  };
+function viewEvent(id){
+  const ev=getEvent(id);
+  if(!ev){ app.innerHTML=`<div class="card empty">この予定は見つかりませんでした。<br><a href="#">最初の画面へ</a></div>`; return; }
+  if(A.ev?.id!==id) A.editing=null;
+  A.ev=ev; A.work = ev.assignment ? {...ev.assignment} : null;
+  renderEvent();
 }
+function commit(msg){ putEvent(A.ev); if(msg) toast(msg); A.work = A.ev.assignment ? {...A.ev.assignment} : null; renderEvent(); }
 
-/* ======================================================
-   主催者の画面
-   ====================================================== */
-const A={ev:null, k:null, work:null, editing:null};   // work: 画面上で編集中の割り当て / editing: 入力中のお客さんid
-
-async function viewAdmin(id,k){
-  if(!A.ev || A.ev.id!==id){ app.innerHTML=`<span class="spin"></span>`; A.editing=null; }
-  let ev;
-  try{ ev=await api("sched_admin_get",{p_id:id, p_admin_token:k}); }
-  catch(e){ app.innerHTML=`<div class="card empty">${esc(e.message)}</div>`; return; }
-  if(!ev){ app.innerHTML=`<div class="card empty">この予定は見つからないか、管理用リンクが正しくありません。</div>`; forgetMine(id); return; }
-  rememberMine({id, k, title:ev.title});
-  Object.assign(A,{ev, k, work: ev.assignment ? {...ev.assignment} : null});
-  renderAdmin();
-  timer=setInterval(()=>{ if(document.visibilityState==="visible" && !A.editing && isOpen(A.ev) && !document.activeElement?.matches("input,select,textarea")) reload(); }, 20000);
-}
-const isOpen = ev => !ev.assignment && (!ev.deadline || new Date(ev.deadline)>new Date());
-async function reload(keepWork=false){
-  try{
-    const n=await api("sched_admin_get",{p_id:A.ev.id, p_admin_token:A.k});
-    if(!n) return;
-    A.ev=n; if(!keepWork) A.work = n.assignment ? {...n.assignment} : null;
-    renderAdmin();
-  }catch(e){ toast(e.message); }
-}
-async function patch(p, msg){
-  try{ await api("sched_admin_update",{p_id:A.ev.id, p_admin_token:A.k, p_patch:p}); if(msg) toast(msg); await reload(); return true; }
-  catch(e){ toast(e.message); return false; }
-}
-
-function renderAdmin(){
+function renderEvent(){
   if(A.editing) return renderEditCustomer();
-  const {ev,k,work}=A, st=ev.settings, R=ev.responses;
+  const {ev}=A, st=ev.settings, R=[...ev.responses].sort((a,b)=>a.name.localeCompare(b.name,"ja"));
   document.title=`${ev.title}｜日程あわせ`;
-  const open=isOpen(ev);
-  const status = ev.published ? ["done","結果を公開中"] : ev.assignment ? ["closed","割り振り済み"] : ["open","受付中"];
   let h = `
     <div class="card">
-      <div class="row" style="margin-bottom:6px"><span class="nogrow pill ${status[0]}">${status[1]}</span><span></span></div>
+      ${ev.assignment?`<div style="margin-bottom:6px"><span class="pill done">割り振り済み</span></div>`:""}
       <h1>${esc(ev.title)}</h1>
-      <p class="muted small" style="margin:0">${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1件 ${durLabel(st.duration)}${st.gap?` ・ 前後 ${durLabel(st.gap)}あける`:""} ・ ${hm(st.dayStart)}–${hm(st.dayEnd)}${st.perDay?` ・ 1日${st.perDay}件まで`:""}</p>
+      <p class="muted small" style="margin:0">${settingsSummary(st)}</p>
     </div>`;
 
-  // お客さん一覧
   const cands = Object.fromEntries(R.map(r=>[r.id, candidatesOf(r,st).length]));
   h += `<div class="card">
-    <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">お客さん（${R.length}人）</h2></div>
+    <h2>お客さん（${R.length}人）</h2>
     ${R.length ? `<ul class="list">${R.map(r=>`<li style="align-items:flex-start">
         <div class="grow">
-          <b>${esc(r.name)}</b>${r.by_admin?"":`<span class="tag">本人が入力</span>`}${cands[r.id]?"":`<span class="tag ng">入る時間なし</span>`}
+          <b>${esc(r.name)}</b>${cands[r.id]?"":`<span class="tag ng">入る時間なし</span>`}
           <div class="small" style="color:var(--ink2)">${esc(availSummary(r.avail))}</div>
-          ${r.comment?`<div class="muted small">「${esc(r.comment)}」</div>`:""}
+          ${r.comment?`<div class="muted small">メモ：${esc(r.comment)}</div>`:""}
         </div>
         <button class="btn sm nogrow" data-edit="${esc(r.id)}">編集</button></li>`).join("")}</ul>`
       : `<p class="muted small">まだいません。お客さんから聞いた空き日時を入力してください。</p>`}
     <button class="btn pri wide" id="addCust" style="margin-top:10px">＋ お客さんの空き日時を入力</button>
   </div>`;
 
-  // 割り振り
   if(!ev.assignment){
     h += `<div class="card"><h2>割り振り</h2>
-      <p class="muted small">全員の空き時間を見て、重ならないように一括で決めます。入力した順番は関係ありません。</p>
+      <p class="muted small">全員の空き時間を見て、重ならないように一括で決めます。入力した順番は関係ありません。あとから人を追加したら、もう一度押せば組み直せます。</p>
       <button class="btn pri big" id="run" ${R.length?"":"disabled"}>日程を割り振る</button></div>`;
-  } else h += resultHtml();
-
-  // お客さん自身に入力してもらう
-  h += `<details class="card" ${open && R.some(r=>!r.by_admin) ? "open":""}><summary>お客さんに直接入力してもらう</summary>
-      <p class="muted small" style="margin-top:8px">このリンクを送ると、お客さんが自分で空き日時を入力できます（名前と日時を選ぶだけ）。ほかの人の入力は見えません。</p>
-      <div class="share"><input type="text" readonly value="${esc(shareUrl(ev.id))}" aria-label="お客さん用リンク"><button class="btn nogrow" id="copy">コピー</button></div>
-      ${navigator.share?`<button class="btn wide" id="nshare" style="margin-top:8px">共有する</button>`:""}
-      <details style="margin-top:8px"><summary class="small">QRコード</summary><div class="qr" id="qr"></div></details>
-      <div class="field" style="margin:14px 0 0"><label class="f" for="dl">入力の締切（任意）</label>
-        <div class="row"><input type="datetime-local" id="dl" value="${ev.deadline?toLocalInput(new Date(ev.deadline)):""}"><button class="btn nogrow" id="saveDl">保存</button></div>
-        <p class="muted small" style="margin:6px 0 0">${ev.assignment?"割り振り後は、お客さんは入力できません。":open?"受付中です。締切を空にすると締切なしになります。":"締切を過ぎたので受付を終了しています。"}</p></div>
-    </details>`;
+  } else h += resultHtml(R);
 
   h += `<details class="card"><summary>設定を変える・削除</summary>
       <div class="field" style="margin-top:12px"><label class="f" for="e_title">タイトル</label><input type="text" id="e_title" maxlength="100" value="${esc(ev.title)}"></div>
-      <div class="field"><label class="f" for="e_note">お客さんへのメモ（任意）</label><textarea id="e_note" maxlength="1000" placeholder="例：場所は〇〇です">${esc(ev.note)}</textarea></div>
       ${settingsFields(st)}
-      <label class="f">あなたが対応できない日（タップで切り替え）</label>
+      <label class="f">休みの日（タップで切り替え）</label>
       <div id="ngcal"></div>
       <button class="btn pri wide" id="saveSt">設定を保存</button>
       <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-      <p class="muted small">このページのリンク（管理用）を保存しておくと、ほかの端末からも開けます。お客さんには送らないでください。</p>
-      <button class="btn wide" id="copyAdmin" style="margin-bottom:8px">管理用リンクをコピー</button>
+      <button class="btn wide" id="dup" style="margin-bottom:8px">この設定で別の予定を作る</button>
       <button class="btn danger wide" id="delete">この予定を削除</button>
     </details>`;
 
   app.innerHTML=h;
-  bindAdmin();
+  bindEvent(R);
 }
 
-function resultHtml(){
-  const {ev,work}=A, st=ev.settings, R=ev.responses, byId=new Map(R.map(r=>[r.id,r]));
+function resultHtml(R){
+  const {ev,work}=A, st=ev.settings, byId=new Map(R.map(r=>[r.id,r]));
   const assigned=R.filter(r=>work[r.id]), un=R.filter(r=>!work[r.id]);
   const fresh=R.filter(r=>!(r.id in ev.assignment));
   const gap=st.gap||0;
-  // おかしな所のチェック（手で動かしたとき・あとから入力が変わったとき）
+  // おかしな所のチェック（手で動かしたとき・あとから空き日時を直したとき）
   const warn={};
   const slots=assigned.map(r=>({id:r.id, date:work[r.id].date, s:toMin(work[r.id].start), e:toMin(work[r.id].end)}));
   for(const a of slots){
@@ -650,13 +565,13 @@ function resultHtml(){
     ${days.map(d=>`<div class="res-day"><div class="d">${dayLabel(d)}</div>
       ${assigned.filter(r=>work[r.id].date===d).sort((a,b)=>work[a.id].start.localeCompare(work[b.id].start)).map(r=>`
         <div class="res-item"><span class="t">${hm(work[r.id].start)}–${hm(work[r.id].end)}</span><span class="who">${esc(r.name)}${warn[r.id]?`<span class="tag ng">${warn[r.id]}</span>`:""}</span>
-        <button class="btn sm nogrow" data-msg="${esc(r.id)}" title="連絡用の文をコピー">文をコピー</button></div>`).join("")}
+        <button class="btn sm nogrow" data-msg="${esc(r.id)}">連絡文</button></div>`).join("")}
     </div>`).join("")}
     ${un.length?`<div class="res-day"><div class="d" style="color:var(--ng)">入らなかった人</div>
       ${un.map(r=>`<div class="res-item"><span class="who">${esc(r.name)}${candidatesOf(r,st).length?"":`<span class="tag ng">入る時間なし</span>`}</span></div>`).join("")}
       <p class="muted small" style="margin:6px 0 0">空き日時を増やしてもらうか、下の「手で動かす」で調整してください。</p></div>`:""}
 
-    <details style="margin-top:10px"><summary>手で動かす</summary>
+    <details style="margin-top:10px" id="manual"><summary>手で動かす</summary>
       <ul class="list" style="margin-top:6px">${R.map(r=>{ const cur=work[r.id]; const cs=candidatesOf(r,st);
         return `<li><span class="grow"><b>${esc(r.name)}</b></span>
         <select class="nogrow" data-person="${esc(r.id)}" style="width:auto;max-width:65%">
@@ -671,71 +586,55 @@ function resultHtml(){
       <button class="btn" id="rerun">もう一度割り振る</button>
       <button class="btn" id="copyAll">一覧をコピー</button>
     </div>
-    ${R.some(r=>!r.by_admin) ? (ev.published
-      ? `<div class="notice ok" style="margin:12px 0 8px">自分で入力したお客さんは、同じリンクを開くと自分の日程を見られます。</div><button class="btn wide" id="unpublish">公開をやめる</button>`
-      : `<button class="btn pri wide" id="publish" style="margin-top:12px" ${dirty?"disabled":""}>結果をお客さんのページに表示する</button>`) : ""}
     <button class="btn ghost wide" id="reopen" style="margin-top:8px">割り振りを取り消す</button>
   </div>`;
 }
 
-function bindAdmin(){
-  const {ev,k}=A, st=ev.settings;
-  $$("[data-edit]").forEach(b=>b.onclick=()=>{ A.editing=b.dataset.edit; renderAdmin(); scrollTo(0,0); });
-  $("#addCust").onclick=()=>{ A.editing="new"; renderAdmin(); scrollTo(0,0); };
-  $("#copy").onclick=()=>copyText(shareUrl(ev.id),"リンクをコピーしました");
-  if($("#nshare")) $("#nshare").onclick=()=>navigator.share({title:ev.title, text:`${ev.title}：空いている日時を教えてください`, url:shareUrl(ev.id)}).catch(()=>{});
-  if(window.qrcode){ const q=qrcode(0,"M"); q.addData(shareUrl(ev.id)); q.make(); $("#qr").innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }
-  $("#saveDl").onclick=()=>{ const v=$("#dl").value; patch({deadline: v ? new Date(v).toISOString() : null}, v?"締切を保存しました":"締切なしにしました"); };
-  $("#copyAdmin").onclick=()=>copyText(adminUrl(ev.id,k),"管理用リンクをコピーしました");
-  $("#delete").onclick=async()=>{
+function bindEvent(R){
+  const {ev}=A, st=ev.settings;
+  $$("[data-edit]").forEach(b=>b.onclick=()=>{ A.editing=b.dataset.edit; renderEvent(); scrollTo(0,0); });
+  $("#addCust").onclick=()=>{ A.editing="new"; renderEvent(); scrollTo(0,0); };
+  $("#delete").onclick=()=>{
     if(!confirm(`「${ev.title}」を削除します。入力した内容もすべて消えます。よろしいですか？`)) return;
-    try{ await api("sched_admin_delete",{p_id:ev.id, p_admin_token:k}); forgetMine(ev.id); A.ev=null; toast("削除しました"); go("./"); }catch(e){ toast(e.message); }
+    removeEvent(ev.id); A.ev=null; toast("削除しました"); go("#");
   };
-  // 対応できない日
+  $("#dup").onclick=()=>{
+    const e={id:uuid().slice(0,8), title:ev.title+"（コピー）", settings:{...st, ng:[]}, responses:[], assignment:null, created:new Date().toISOString()};
+    putEvent(e); toast("新しい予定を作りました。期間を確認してください"); go("#e="+e.id);
+  };
+  // 休みの日
   const ng=[...(st.ng||[])];
   const drawNg=()=>{
-    const fake={...st, ng:[]};
     const rows=ng.map(d=>({date:d}));
     const root=$("#ngcal");
-    availEditor(root, fake, rows);
+    availEditor(root, {...st, ng:[]}, rows);
     $$(".sub, p.muted", root).forEach(e=>e.remove());   // 時間の行は使わない
     $$("[data-day]",root).forEach(b=>b.onclick=()=>{ const d=b.dataset.day, i=ng.indexOf(d); i>=0?ng.splice(i,1):ng.push(d); drawNg(); });
   };
   drawNg();
-  $("#saveSt").onclick=async()=>{
+  $("#saveSt").onclick=()=>{
     const [s,err]=readSettings({...st, ng}); if(err) return toast(err);
     const title=$("#e_title").value.trim(); if(!title) return toast("タイトルを入れてください");
-    if(ev.assignment && JSON.stringify(s)!==JSON.stringify(st)) toast("設定を変えたので、必要なら「もう一度割り振る」を押してください");
-    await patch({title, note:$("#e_note").value.trim(), settings:s}, "保存しました");
+    const changed = JSON.stringify(s)!==JSON.stringify(st);
+    ev.title=title; ev.settings=s;
+    commit(ev.assignment && changed ? "保存しました。必要なら「もう一度割り振る」を押してください" : "保存しました");
   };
 
-  const runAlloc=async(shuffle)=>{
-    const t0=Date.now();
-    const a=allocate(ev.responses, st, shuffle);
-    A.work=a;
-    await patch({assignment:a, published:false}, shuffle?"別の組み合わせで割り振りました":"割り振りました");
-  };
-  if($("#run")) $("#run").onclick=()=>{
-    if(ev.responses.some(r=>!r.by_admin) || isOpen(ev)) {
-      if(!confirm("割り振ると、お客さん用リンクからの入力は締め切られます。よろしいですか？")) return;
-    }
-    runAlloc(false);
-  };
+  const runAlloc=shuffle=>{ ev.assignment=allocate(ev.responses, st, shuffle); commit(shuffle?"別の組み合わせで割り振りました":"割り振りました"); };
+  if($("#run")) $("#run").onclick=()=>runAlloc(false);
   if(!ev.assignment) return;
-  $("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、もう一度割り振りますか？")) return; runAlloc(true); };
+  $("#rerun").onclick=()=>{ if(!confirm("いまの結果（手で動かした分も含む）を消して、もう一度割り振りますか？")) return; runAlloc(true); };
   $$("[data-person]").forEach(sel=>sel.onchange=()=>{
     const [date,start,end]=sel.value.split("|");
     A.work={...A.work, [sel.dataset.person]: sel.value ? {date,start,end} : null};
-    renderAdmin(); $("details:has([data-person])")?.setAttribute("open","");
+    const keep=A.work; renderEvent(); A.work=keep; $("#manual")?.setAttribute("open","");
   });
-  if($("#saveWork")) $("#saveWork").onclick=()=>patch({assignment:A.work}, "保存しました");
-  if($("#publish")) $("#publish").onclick=()=>patch({published:true}, "お客さんのページに表示しました");
-  if($("#unpublish")) $("#unpublish").onclick=()=>patch({published:false}, "表示をやめました");
-  $("#reopen").onclick=()=>{ if(!confirm("割り振り結果を取り消しますか？")) return; A.work=null; patch({assignment:null, published:false}, "取り消しました"); };
-  const R=ev.responses, w=A.work;
+  if($("#saveWork")) $("#saveWork").onclick=()=>{ ev.assignment={...A.work}; commit("保存しました"); };
+  $("#reopen").onclick=()=>{ if(!confirm("割り振り結果を取り消しますか？")) return; ev.assignment=null; commit("取り消しました"); };
+  const w=A.work;
   $$("[data-msg]").forEach(b=>b.onclick=()=>{
     const r=R.find(x=>x.id===b.dataset.msg), a=w[r.id];
-    copyText(`${r.name}様\n${ev.title}の日程は\n${slotLabel(a)}\nに決まりました。よろしくお願いいたします。`, `${r.name}さん宛の文をコピーしました`);
+    shareText(`${r.name}様\n次回のセッションは\n${slotLabel(a)}\nでお願いいたします。`, `${r.name}さんへの連絡文をコピーしました`);
   });
   $("#copyAll").onclick=()=>{
     const lines=[`【${ev.title}】`];
@@ -745,12 +644,17 @@ function bindAdmin(){
     copyText(lines.join("\n"),"一覧をコピーしました");
   };
 }
+// スマホなら共有メニュー（LINE を選べる）、それ以外はコピー
+function shareText(text,msg){
+  if(navigator.share && matchMedia("(pointer:coarse)").matches) navigator.share({text}).catch(()=>{});
+  else copyText(text,msg);
+}
 
-/* ---------- 主催者がお客さんの空き日時を入力する画面 ---------- */
+/* ---------- お客さんの空き日時を入力する画面 ---------- */
 function renderEditCustomer(){
   const {ev}=A, st=ev.settings;
   const r = A.editing==="new" ? null : ev.responses.find(x=>x.id===A.editing);
-  if(A.editing!=="new" && !r){ A.editing=null; return renderAdmin(); }
+  if(A.editing!=="new" && !r){ A.editing=null; return renderEvent(); }
   const rows = r ? r.avail.map(a=>({...a})) : [];
   app.innerHTML = `<form class="card" id="cust" autocomplete="off">
       <h2>${r?"お客さんの空き日時を直す":"お客さんの空き日時を入力"}</h2>
@@ -760,11 +664,11 @@ function renderEditCustomer(){
       <details class="sub" ${r?"":"open"}><summary>LINEの文面を貼って読み取る</summary>
         <textarea id="paste" placeholder="例）&#10;3日 10時〜15時&#10;5日、8日は終日OK&#10;12/10 午後&#10;14日 13:00以降" style="margin-top:8px"></textarea>
         <button type="button" class="btn wide" id="parse" style="margin-top:8px">読み取ってカレンダーに入れる</button>
-        <p class="muted small" style="margin:6px 0 0">読み取り結果は下のカレンダーで確認・修正できます。日付だけのときは対応時間（${hm(st.dayStart)}–${hm(st.dayEnd)}）で入ります。</p>
+        <p class="muted small" style="margin:6px 0 0">「◯日」「◯時〜◯時」「午前・午後」「◯時以降」などの書き方を拾います。読み取れなかった分は下のカレンダーで直してください。日付だけのときは営業時間（${hm(st.dayStart)}–${hm(st.dayEnd)}）で入ります。</p>
       </details>
       <label class="f">空いている日時</label>
       <div id="ed" class="field"></div>
-      <div class="field"><label class="f" for="ccomment">メモ（任意・お客さんには見えません）</label>
+      <div class="field"><label class="f" for="ccomment">メモ（任意）</label>
         <input type="text" id="ccomment" maxlength="500" value="${esc(r?.comment||"")}"></div>
       <button class="btn pri big" id="csave">保存</button>
       <div class="row" style="margin-top:8px">
@@ -780,23 +684,22 @@ function renderEditCustomer(){
     ed.render();
     toast(added ? `${added}件読み取りました${skipped.length?`（期間外の${skipped.length}件は除外）`:""}` : "日時を読み取れませんでした。カレンダーから入力してください");
   };
-  $("#cback").onclick=()=>{ A.editing=null; renderAdmin(); };
-  if($("#cdel")) $("#cdel").onclick=async()=>{
+  $("#cback").onclick=()=>{ A.editing=null; renderEvent(); };
+  if($("#cdel")) $("#cdel").onclick=()=>{
     if(!confirm(`${r.name}さんを削除しますか？`)) return;
-    try{ await api("sched_admin_delete_response",{p_id:ev.id, p_admin_token:A.k, p_response_id:r.id}); A.editing=null; toast("削除しました"); reload(true); }
-    catch(e){ toast(e.message); }
+    ev.responses=ev.responses.filter(x=>x.id!==r.id);
+    if(ev.assignment) delete ev.assignment[r.id];
+    A.editing=null; commit("削除しました");
   };
-  $("#cust").onsubmit=async e=>{
+  $("#cust").onsubmit=e=>{
     e.preventDefault();
     const name=$("#cname").value.trim();
     if(!name) return toast("お名前を入れてください");
     if(!rows.length) return toast("空いている日を1つ以上選んでください");
     const bad=validRows(rows); if(bad) return toast(bad);
-    const btn=$("#csave"); btn.disabled=true;
-    try{
-      await api("sched_admin_put_response",{p_id:ev.id, p_admin_token:A.k, p_response_id:r?.id||uuid(), p_name:name, p_avail:rows, p_comment:$("#ccomment").value.trim()});
-      A.editing=null; toast(r?"保存しました":`${name}さんを追加しました`); reload(true);
-    }catch(err){ toast(err.message); btn.disabled=false; }
+    const data={name, avail:rows, comment:$("#ccomment").value.trim()};
+    if(r) Object.assign(r, data); else ev.responses.push({id:uuid(), ...data});
+    A.editing=null; commit(r?"保存しました":`${name}さんを追加しました`);
   };
 }
 
