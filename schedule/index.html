@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>日程あわせ</title>
 <meta name="description" content="お客さんの空き日を表に入れて、重ならないように自動で割り振る">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='46' rx='8' fill='%23256f6a'/%3E%3Crect x='6' y='10' width='52' height='13' rx='6' fill='%23173f3c'/%3E%3Cpath d='M20 38l8 8 16-16' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -15,15 +16,7 @@
   --sun:#c0392b; --sat:#2f6db0; --off:#e4e1da;
   --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#14161a; --card:#1d2025; --card2:#262a30; --ink:#e9eaec; --ink2:#b5b9bf; --ink3:#8d929a;
-    --line:#343840; --grid:#30343b; --acc:#5fbdb5; --acc-ink:#0d1f1d; --acc-soft:#1c3533; --acc2:#9fdcd6;
-    --pick:#1f4a33; --pick-ink:#9fe0b6; --has:#2b2a1f;
-    --warn:#e3ad5c; --warn-soft:#3a2d18; --ng:#ef7f70; --ng-soft:#3c221f; --ok:#79c58f; --ok-soft:#1d3324;
-    --sun:#f08a7e; --sat:#8ab6ea; --off:#202328;
-  }
-}
+:root{color-scheme:light}   /* Macがダークモードでも、いつも明るい画面で表示する */
 [hidden]{display:none !important}
 *{box-sizing:border-box}
 html,body{margin:0}
