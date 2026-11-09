@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>日程あわせ</title>
+<meta name="description" content="みんなの空いている日時を集めて、重ならないように自動で割り振る日程調整">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='46' rx='8' fill='%23256f6a'/%3E%3Crect x='6' y='10' width='52' height='13' rx='6' fill='%23173f3c'/%3E%3Cpath d='M20 38l8 8 16-16' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee; --card:#ffffff; --card2:#efece5; --ink:#1c1e21; --ink2:#4f545b; --ink3:#767b83;
+  --line:#dcd8cf; --acc:#256f6a; --acc-ink:#ffffff; --acc-soft:#dcefec; --acc2:#173f3c;
+  --warn:#9a6212; --warn-soft:#f8ead2; --ng:#b2392b; --ng-soft:#f7dfdb; --ok:#2f7a45; --ok-soft:#dcefe1;
+  --sun:#c0392b; --sat:#2f6db0;
+  --r:14px; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+  --font:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14161a; --card:#1d2025; --card2:#262a30; --ink:#e9eaec; --ink2:#b5b9bf; --ink3:#8d929a;
+    --line:#343840; --acc:#5fbdb5; --acc-ink:#0d1f1d; --acc-soft:#1c3533; --acc2:#9fdcd6;
+    --warn:#e3ad5c; --warn-soft:#3a2d18; --ng:#ef7f70; --ng-soft:#3c221f; --ok:#79c58f; --ok-soft:#1d3324;
+    --sun:#f08a7e; --sat:#8ab6ea;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6;min-height:100dvh}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom))}
+header.top{display:flex;align-items:center;gap:10px;padding:6px 0 14px}
+header.top a{color:inherit;text-decoration:none;display:flex;align-items:center;gap:10px}
+header.top b{font-size:18px;letter-spacing:.04em}
+.logo{width:30px;height:30px;flex:none}
+h1{font-size:22px;line-height:1.35;margin:0 0 6px}
+h2{font-size:16px;margin:0 0 10px}
+p{margin:0 0 10px}
+.muted{color:var(--ink3);font-size:14px}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:0 0 14px;box-shadow:var(--shadow)}
+.sub{background:var(--card2);border-radius:12px;padding:12px;margin:0 0 12px}
+label.f{display:block;font-size:14px;font-weight:700;color:var(--ink2);margin:0 0 6px}
+.field{margin:0 0 14px}
+input[type=text],input[type=date],input[type=datetime-local],textarea,select{
+  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-height:46px}
+select{padding-right:6px}
+textarea{min-height:90px;resize:vertical}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px;border-color:transparent}
+.row{display:flex;gap:8px;align-items:center}
+.row > *{flex:1 1 0;min-width:0}
+.row > .nogrow{flex:0 0 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);
+  border-radius:10px;padding:10px 14px;min-height:46px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.btn.big{width:100%;min-height:54px;font-size:17px}
+.btn.wide{width:100%}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--ng);border-color:var(--ng-soft)}
+.btn.sm{min-height:36px;padding:5px 10px;font-size:14px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.linkbtn{border:0;background:none;color:var(--acc);font-weight:700;font-size:14px;padding:4px 0;cursor:pointer}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--card2);color:var(--ink2);white-space:nowrap}
+.pill.open{background:var(--ok-soft);color:var(--ok)}
+.pill.closed{background:var(--warn-soft);color:var(--warn)}
+.pill.done{background:var(--acc-soft);color:var(--acc2)}
+.list{list-style:none;margin:0;padding:0}
+.list > li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.list > li:first-child{border-top:0}
+.grow{flex:1;min-width:0}
+.x{border:0;background:transparent;color:var(--ink3);font-size:22px;line-height:1;width:40px;height:40px;border-radius:8px;cursor:pointer;flex:none}
+.x:hover{background:var(--card2)}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:6px;background:var(--card2);color:var(--ink2);margin-left:6px;font-weight:500;white-space:nowrap}
+.tag.ng{background:var(--ng-soft);color:var(--ng)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.notice{border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:14px}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.notice.ok{background:var(--ok-soft);color:var(--ok)}
+.notice.info{background:var(--acc-soft);color:var(--acc2)}
+.share{display:flex;gap:8px}
+.share input{font-size:13px}
+.qr{display:flex;justify-content:center;padding:10px 0 0}
+.qr svg{width:170px;height:170px;background:#fff;border-radius:8px;padding:8px}
+details > summary{cursor:pointer;font-weight:700;color:var(--ink2);padding:4px 0}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:10px;font-size:14px;z-index:10;max-width:calc(100% - 32px);box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.empty{text-align:center;color:var(--ink3);padding:18px 0}
+.spin{display:block;margin:40px auto;width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.steps{margin:0;padding-left:1.3em;color:var(--ink2);font-size:14px}
+.steps li{margin:2px 0}
+/* カレンダー */
+.cal{margin:0 0 12px}
+.cal-h{font-weight:700;font-size:15px;margin:0 0 6px}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-w{text-align:center;font-size:12px;color:var(--ink3);padding:2px 0}
+.cal-w.sun,.cal-d.sun{color:var(--sun)} .cal-w.sat,.cal-d.sat{color:var(--sat)}
+.cal-d{aspect-ratio:1/1;max-height:52px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;font-size:15px;cursor:pointer;padding:0;position:relative}
+.cal-d.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.cal-d.ngday{background:var(--card2);color:var(--ink3);text-decoration:line-through}
+.cal-d[disabled]{opacity:.35;cursor:default}
+.cal-d .dot{position:absolute;left:50%;bottom:5px;width:5px;height:5px;border-radius:50%;background:currentColor;transform:translateX(-50%)}
+.cal-blank{visibility:hidden}
+/* 空き時間の行 */
+.av-day{padding:8px 0;border-top:1px solid var(--line)}
+.av-day:first-child{border-top:0}
+.av-day .d{font-weight:700;font-size:15px}
+.av-row{display:flex;gap:6px;align-items:center;margin-top:6px}
+.av-row select{flex:1;min-width:0;min-height:42px;padding:6px 8px}
+.av-row .til{flex:none;color:var(--ink3)}
+/* 結果 */
+.res-day{padding:10px 0;border-top:1px solid var(--line)}
+.res-day:first-child{border-top:0}
+.res-day .d{font-size:13px;font-weight:700;color:var(--ink3)}
+.res-item{display:flex;align-items:center;gap:8px;padding:3px 0}
+.res-item .t{flex:none;font-variant-numeric:tabular-nums;font-weight:500;min-width:96px}
+.res-item .who{flex:1;font-weight:700;min-width:0}
+.big-answer{font-size:22px;font-weight:700;color:var(--acc2);margin:4px 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a href="./" id="homeLink">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="46" rx="8" fill="#256f6a"/><rect x="6" y="10" width="52" height="13" rx="6" fill="#173f3c"/><path d="M20 38l8 8 16-16" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <b>日程あわせ</b>
+    </a>
+  </header>
+  <main id="app"><span class="spin"></span></main>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script>
+"use strict";
+const SUPABASE_URL = "https://sgylbahmregnpzylsbtf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-fD7ys_YTYLvJPdXWGCbCg_vNKYbaZg";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------- 小道具 ---------- */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const app = $("#app");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)) }catch{ return null } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch{} },
+  del(k){ try{ localStorage.removeItem(k) }catch{} },
+};
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(+c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>+c/4).toString(16)); }
+function token(){ return [...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,"0")).join(""); }
+async function copyText(text,msg){ try{ await navigator.clipboard.writeText(text); toast(msg); }catch{ prompt("コピーしてください", text); } }
+
+/* ---------- 日付・時刻 ---------- */
+const WD = ["日","月","火","水","木","金","土"];
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseD = s => new Date(s+"T00:00");
+const toMin = hm => { const [h,m]=hm.split(":").map(Number); return h*60+m; };
+const fromMin = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
+const hm = s => typeof s==="number" ? `${Math.floor(s/60)}:${pad(s%60)}` : s.replace(/^0(\d)/,"$1");
+const dayLabel = s => { const d=parseD(s); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; };
+function fmtDT(iso){ const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) ${d.getHours()}:${pad(d.getMinutes())}`; }
+const toLocalInput = d => `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function durLabel(m){ const h=Math.floor(m/60), r=m%60; return h ? `${h}時間${r?r+"分":""}` : `${r}分`; }
+function datesBetween(a,b){ const out=[]; for(let d=parseD(a); ymd(d)<=b; d.setDate(d.getDate()+1)) out.push(ymd(d)); return out; }
+const TIMES = Array.from({length:37},(_,i)=>fromMin(360+i*30));   // 6:00〜24:00
+function timeOpts(sel, list=TIMES){ const l=list.includes(sel)||!sel?list:[...list,sel].sort(); return l.map(t=>`<option value="${t}" ${t===sel?"selected":""}>${hm(t)}</option>`).join(""); }
+function slotLabel(a){ return `${dayLabel(a.date)} ${hm(a.start)}–${hm(a.end)}`; }
+function availSummary(avail){
+  return [...avail].sort((a,b)=>(a.date+a.from).localeCompare(b.date+b.from))
+    .map(a=>`${dayLabel(a.date)} ${hm(a.from)}–${hm(a.to)}`).join("、");
+}
+
+async function api(fn, args){
+  const {data, error} = await sb.rpc(fn, args);
+  if(error){
+    const m = error.message||"";
+    if(m.includes("closed")) throw new Error("受付は締め切られています");
+    if(m.includes("forbidden")) throw new Error("権限がありません");
+    throw new Error("通信に失敗しました。時間をおいてもう一度お試しください");
+  }
+  return data;
+}
+
+/* ---------- この端末に覚えておくもの ---------- */
+// 作った予定: sched:mine = [{id, k, title}] ／ お客さんとしての入力: sched:resp:<eventId> = {id, tok}
+const mine = () => LS.get("sched:mine") || [];
+function rememberMine(ev){ const l=mine().filter(x=>x.id!==ev.id); l.unshift(ev); LS.set("sched:mine", l.slice(0,30)); }
+function forgetMine(id){ LS.set("sched:mine", mine().filter(x=>x.id!==id)); }
+
+/* ======================================================
+   割り振り
+   ------------------------------------------------------
+   1. 各お客さんの空き時間から、所要時間ぶん入る開始時刻を全部ならべる（候補）
+      ※主催者の対応時間・対応できない日・期間の外は除く
+   2. 候補が少ない（選択肢が少ない）人から順に決めていき、
+      ほかの人の候補をなるべくつぶさない時間を優先して入れる
+   3. 全員入らないときは組み合わせを探索して、入れられる人数が最大になるものを選ぶ
+   入力した順番・回答した順番は一切関係しないので、先着順にはならない。
+   ====================================================== */
+function candidatesOf(resp, st){
+  const dur=st.duration, step = dur%30 ? 15 : 30;
+  const lo=toMin(st.dayStart), hi=toMin(st.dayEnd), ng=new Set(st.ng||[]);
+  const out=[], seen=new Set();
+  for(const a of resp.avail){
+    if(a.date<st.start || a.date>st.end || ng.has(a.date)) continue;
+    const from=Math.max(toMin(a.from),lo), to=Math.min(toMin(a.to),hi);
+    for(let t=Math.ceil(from/step)*step; t+dur<=to; t+=step){
+      const key=a.date+t; if(seen.has(key)) continue; seen.add(key);
+      out.push({date:a.date, s:t, e:t+dur});
+    }
+  }
+  return out;
+}
+const clash=(a,b,gap)=> a.date===b.date && a.s < b.e+gap && b.s < a.e+gap;
+
+function allocate(responses, st, shuffle=false){
+  const gap=st.gap||0, perDay=st.perDay||0;
+  const rnd = () => shuffle ? Math.random() : 0;
+  const people = responses.map(r=>({id:r.id, cands:candidatesOf(r,st)}));
+  // 候補ごとに「ほかの人の候補といくつ重なるか」を数えて、少ないものから試す
+  for(const p of people){
+    for(const c of p.cands){
+      let n=0; for(const q of people) if(q!==p) for(const d of q.cands) if(clash(c,d,gap)) n++;
+      c.score = n + rnd()*0.9;
+    }
+    p.cands.sort((a,b)=>a.score-b.score || (a.date+pad(a.s)).localeCompare(b.date+pad(b.s)));
+    p.key = p.cands.length + rnd()*0.9;
+  }
+  const order=[...people].sort((a,b)=>a.key-b.key);
+  const N=order.length, placed=[], perDayCount={}, pick=new Array(N).fill(null);
+  let best=-1, bestPick=null, nodes=0;
+  const t0=performance.now();
+  const fits=c=> (!perDay || (perDayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap));
+  (function dfs(i,count){
+    if(best===N) return;
+    if(++nodes>400000 || (nodes%2000===0 && performance.now()-t0>2000)) return;
+    if(count+(N-i)<=best) return;
+    if(i===N){ best=count; bestPick=pick.slice(); return; }
+    for(const c of order[i].cands){
+      if(!fits(c)) continue;
+      placed.push(c); perDayCount[c.date]=(perDayCount[c.date]||0)+1; pick[i]=c;
+      dfs(i+1,count+1);
+      placed.pop(); perDayCount[c.date]--; pick[i]=null;
+      if(best===N || nodes>400000) return;
+    }
+    dfs(i+1,count);
+  })(0,0);
+  const out={};
+  order.forEach((p,i)=>{ const c=bestPick&&bestPick[i]; out[p.id]= c ? {date:c.date, start:fromMin(c.s), end:fromMin(c.e)} : null; });
+  return out;
+}
+
+/* ======================================================
+   LINE などの文章から空き日時を読み取る
+   例）「12/3 10時〜15時」「5日、8日は終日OK」「12月10日 午後」「14日 13:00以降」
+   ====================================================== */
+function parseText(text, st){
+  const z2h = s => s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[：]/g,":").replace(/[／]/g,"/");
+  const startD=parseD(st.start);
+  let month=startD.getMonth()+1;
+  const yearFor = m => startD.getFullYear() + (m < startD.getMonth()+1 ? 1 : 0);
+  const lo=st.dayStart, hi=st.dayEnd;
+  const out=[], skipped=[];
+  let lastDates=[], lastAllDay=false;
+  const H = (h,mm,pm) => { h=+h; if(pm && h<12) h+=12; return fromMin(Math.min(24*60, h*60+(+mm||0))); };
+  for(let line of z2h(text).split(/\r?\n/)){
+    const dates=[];
+    line = line.replace(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?|(\d{1,2})\s*日/g, (_,m,d,d2)=>{
+      if(m) month=+m;
+      const dd=+(d||d2);
+      if(month>=1&&month<=12&&dd>=1&&dd<=31) dates.push(`${yearFor(month)}-${pad(month)}-${pad(dd)}`);
+      return " ";
+    }).replace(/[(（][月火水木金土日祝・]+[)）]/g," ");
+    const ranges=[];
+    const T="(午前|午後|AM|PM|am|pm)?\\s*(\\d{1,2})\\s*(?:[:時]\\s*(\\d{2})?\\s*分?|時半)?";
+    line = line.replace(new RegExp(T+"\\s*(?:-|~|〜|～|ー|－|−|—|から)\\s*"+T+"\\s*(?:時|まで)?","g"), (all,p1,h1,m1,p2,h2,m2)=>{
+      if(/時半/.test(all.split(/-|~|〜|～|ー|－|−|—|から/)[0])) m1="30";
+      let pm1=/午後|pm/i.test(p1||""), pm2=/午後|pm/i.test(p2||"")||pm1;
+      let a=+h1, b=+h2;
+      if(!p1 && a<7) pm1=true;
+      if(!p2 && (b<a || b<7) && b<12) pm2=true;
+      ranges.push({from:H(h1,m1,pm1), to:H(h2,m2,pm2)}); return " ";
+    });
+    line = line.replace(new RegExp(T+"\\s*(?:以降|から|～|〜)","g"), (_,p,h,m)=>{ let pm=/午後|pm/i.test(p||"")||(+h<7); ranges.push({from:H(h,m,pm), to:hi}); return " "; });
+    line = line.replace(new RegExp(T+"\\s*(?:まで|以前)","g"), (_,p,h,m)=>{ let pm=/午後|pm/i.test(p||"")||(+h<7); ranges.push({from:lo, to:H(h,m,pm)}); return " "; });
+    if(/午前/.test(line)) ranges.push({from:lo, to:"12:00"});
+    if(/午後/.test(line)) ranges.push({from:"12:00", to:hi});
+    if(/夕方|夜/.test(line)) ranges.push({from:"17:00", to:hi});
+    const good = ranges.filter(r=>r.from<r.to);
+    if(dates.length){
+      const rs = good.length ? good : [{from:lo,to:hi}];
+      for(const d of dates){
+        if(d<st.start || d>st.end){ skipped.push(d); continue; }
+        for(const r of rs) out.push({date:d, ...r});
+      }
+      lastDates=dates.filter(d=>d>=st.start&&d<=st.end); lastAllDay=!good.length;
+    } else if(good.length && lastDates.length && lastAllDay){
+      // 日付の次の行に時間だけ書いてあるとき
+      for(const d of lastDates){
+        const i=out.findIndex(a=>a.date===d && a.from===lo && a.to===hi); if(i>=0) out.splice(i,1);
+        for(const r of good) out.push({date:d, ...r});
+      }
+      lastAllDay=false;
+    }
+  }
+  return {avail:out, skipped};
+}
+
+/* ======================================================
+   空き日時の入力部品（カレンダーで日をタップ → 時間を選ぶ）
+   ====================================================== */
+function availEditor(root, st, rows, {forAdmin=false}={}){
+  const ng=new Set(st.ng||[]);
+  const months=[]; { const d=parseD(st.start); d.setDate(1); while(ymd(d)<=st.end){ months.push([d.getFullYear(), d.getMonth()]); d.setMonth(d.getMonth()+1); } }
+  const render=()=>{
+    const has=new Set(rows.map(r=>r.date));
+    let h="";
+    for(const [y,m] of months){
+      const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
+      h+=`<div class="cal"><div class="cal-h">${y}年${m+1}月</div><div class="cal-g">`+
+        WD.map((w,i)=>`<div class="cal-w ${i===0?"sun":i===6?"sat":""}">${w}</div>`).join("")+
+        `<div class="cal-blank"></div>`.repeat(first.getDay());
+      for(let d=1; d<=days; d++){
+        const ds=`${y}-${pad(m+1)}-${pad(d)}`, wd=new Date(y,m,d).getDay();
+        const out = ds<st.start || ds>st.end, isNg=ng.has(ds);
+        h+=`<button type="button" class="cal-d ${wd===0?"sun":wd===6?"sat":""} ${has.has(ds)?"on":""} ${isNg?"ngday":""}" data-day="${ds}" ${out||isNg?"disabled":""} aria-pressed="${has.has(ds)}">${d}</button>`;
+      }
+      h+=`</div></div>`;
+    }
+    const byDay={}; rows.forEach((r,i)=>(byDay[r.date] ||= []).push(i));
+    const days=Object.keys(byDay).sort();
+    h += days.length ? `<div class="sub" style="margin-bottom:0">`+days.map(d=>`
+      <div class="av-day"><div class="row"><span class="d grow">${dayLabel(d)}</span>
+        <button type="button" class="linkbtn nogrow" data-addtime="${d}">＋時間帯</button></div>
+        ${byDay[d].map(i=>`<div class="av-row">
+          <select data-i="${i}" data-k="from" aria-label="何時から">${timeOpts(rows[i].from)}</select><span class="til">〜</span>
+          <select data-i="${i}" data-k="to" aria-label="何時まで">${timeOpts(rows[i].to)}</select>
+          <button type="button" class="x" data-rm="${i}" aria-label="削除">×</button></div>`).join("")}
+      </div>`).join("")+`</div>`
+      : `<p class="muted small" style="margin:0">${forAdmin?"空いている日をタップしてください。":"空いている日をタップしてください。そのあと時間を選べます。"}</p>`;
+    root.innerHTML=h;
+    $$("[data-day]",root).forEach(b=>b.onclick=()=>{
+      const d=b.dataset.day;
+      if(rows.some(r=>r.date===d)){ for(let i=rows.length-1;i>=0;i--) if(rows[i].date===d) rows.splice(i,1); }
+      else rows.push({date:d, from:st.dayStart, to:st.dayEnd});
+      render();
+    });
+    $$("[data-addtime]",root).forEach(b=>b.onclick=()=>{ rows.push({date:b.dataset.addtime, from:st.dayStart, to:st.dayEnd}); render(); });
+    $$("[data-rm]",root).forEach(b=>b.onclick=()=>{ rows.splice(+b.dataset.rm,1); render(); });
+    $$("select[data-i]",root).forEach(s=>s.onchange=()=>{ rows[+s.dataset.i][s.dataset.k]=s.value; });
+  };
+  render();
+  return {render};
+}
+function validRows(rows){
+  for(const r of rows) if(r.from>=r.to) return `${dayLabel(r.date)} の時間が「〜から〜まで」の順になっていません`;
+  return null;
+}
+
+/* ---------- 画面の切り替え ---------- */
+function params(){
+  const q=new URLSearchParams(location.search), h=new URLSearchParams(location.hash.slice(1));
+  return {e:q.get("e"), k:h.get("k")};
+}
+function go(url){ history.pushState(null,"",url); route(); }
+addEventListener("popstate", route);
+$("#homeLink").onclick=ev=>{ ev.preventDefault(); go("./"); };
+let timer=null;
+function route(){
+  clearInterval(timer); timer=null;
+  scrollTo(0,0);
+  const {e,k}=params();
+  if(e && k) return viewAdmin(e,k);
+  if(e) return viewRespond(e);
+  return viewHome();
+}
+const baseUrl = () => location.origin + location.pathname;
+const shareUrl = id => `${baseUrl()}?e=${encodeURIComponent(id)}`;
+const adminUrl = (id,k) => `${shareUrl(id)}#k=${encodeURIComponent(k)}`;
+
+/* ---------- 設定フォーム（作成時と変更時で共通） ---------- */
+const DURS=[30,45,60,90,120,150,180,240,300,360];
+const GAPS=[0,15,30,45,60,90,120];
+function settingsFields(st){
+  return `
+    <label class="f">対象の期間</label>
+    <div class="row field"><input type="date" id="s_start" value="${st.start}" aria-label="期間のはじめ"><span class="nogrow muted">〜</span><input type="date" id="s_end" value="${st.end}" aria-label="期間のおわり"></div>
+    <div class="row field" style="align-items:flex-start">
+      <div><label class="f" for="s_dur">1件の所要時間</label><select id="s_dur">${DURS.map(m=>`<option value="${m}" ${m===st.duration?"selected":""}>${durLabel(m)}</option>`).join("")}</select></div>
+      <div><label class="f" for="s_gap">前後にあける時間</label><select id="s_gap">${GAPS.map(m=>`<option value="${m}" ${m===st.gap?"selected":""}>${m?durLabel(m):"なし"}</option>`).join("")}</select></div>
+    </div>
+    <label class="f">あなたが対応できる時間帯</label>
+    <div class="row field"><select id="s_ds" aria-label="何時から">${timeOpts(st.dayStart)}</select><span class="nogrow muted">〜</span><select id="s_de" aria-label="何時まで">${timeOpts(st.dayEnd)}</select></div>
+    <div class="field"><label class="f" for="s_pd">1日に入れる最大件数</label>
+      <select id="s_pd">${[0,1,2,3,4,5,6,8].map(n=>`<option value="${n}" ${n===(st.perDay||0)?"selected":""}>${n?n+"件まで":"制限なし"}</option>`).join("")}</select></div>`;
+}
+function readSettings(old={}){
+  const st={...old, start:$("#s_start").value, end:$("#s_end").value, duration:+$("#s_dur").value, gap:+$("#s_gap").value,
+    dayStart:$("#s_ds").value, dayEnd:$("#s_de").value, perDay:+$("#s_pd").value, ng:old.ng||[]};
+  if(!st.start || !st.end) return [null,"期間を入れてください"];
+  if(st.start>st.end) return [null,"期間のはじめとおわりが逆です"];
+  if(datesBetween(st.start,st.end).length>93) return [null,"期間は3か月以内にしてください"];
+  if(toMin(st.dayEnd)-toMin(st.dayStart) < st.duration) return [null,"対応できる時間帯が所要時間より短いです"];
+  st.ng=st.ng.filter(d=>d>=st.start&&d<=st.end);
+  return [st,null];
+}
+
+/* ======================================================
+   ホーム：予定を作る
+   ====================================================== */
+function viewHome(){
+  document.title="日程あわせ";
+  const n=new Date(); const first=new Date(n.getFullYear(), n.getMonth()+1, 1), last=new Date(n.getFullYear(), n.getMonth()+2, 0);
+  const st={start:ymd(first), end:ymd(last), duration:60, gap:0, dayStart:"09:00", dayEnd:"18:00", perDay:0, ng:[]};
+  const list=mine();
+  app.innerHTML = `
+    ${list.length ? `<div class="card"><h2>作った予定</h2><ul class="list">${list.map(x=>`
+      <li><a class="grow" href="${esc(adminUrl(x.id,x.k))}" data-nav style="color:inherit;font-weight:700;text-decoration:none">${esc(x.title)}</a>
+      <span class="muted small">開く ›</span></li>`).join("")}</ul></div>` : `
+    <div class="card">
+      <h1>空いている日を集めて、重ならないように割り振る</h1>
+      <ol class="steps">
+        <li>期間と1件の所要時間を決めて予定を作る</li>
+        <li>お客さんから聞いた空き日時を入力する（LINEの文面を貼れば読み取ります）。お客さんに専用リンクから入力してもらうこともできます</li>
+        <li>ボタンを押すと、全員の空き時間を見て重ならないように一括で割り振り。入力した順番は関係ないので先着順にはなりません</li>
+      </ol>
+    </div>`}
+    <form class="card" id="create" autocomplete="off">
+      <h2>新しい予定を作る</h2>
+      <div class="field"><label class="f" for="title">タイトル</label>
+        <input type="text" id="title" maxlength="100" value="${first.getMonth()+1}月の予定" required></div>
+      ${settingsFields(st)}
+      <button class="btn pri big" id="createBtn">作る</button>
+    </form>`;
+  $$("[data-nav]").forEach(a=>a.onclick=ev=>{ ev.preventDefault(); go(a.getAttribute("href")); });
+  $("#create").onsubmit=async ev=>{
+    ev.preventDefault();
+    const title=$("#title").value.trim();
+    if(!title) return toast("タイトルを入れてください");
+    const [s,err]=readSettings(st); if(err) return toast(err);
+    const btn=$("#createBtn"); btn.disabled=true; btn.textContent="作成中…";
+    try{
+      const r=await api("sched_create_event",{p_title:title, p_note:"", p_settings:s});
+      rememberMine({id:r.id, k:r.admin_token, title});
+      go(adminUrl(r.id, r.admin_token));
+    }catch(e){ toast(e.message); btn.disabled=false; btn.textContent="作る"; }
+  };
+}
+
+/* ======================================================
+   お客さんの画面（シンプル）
+   ====================================================== */
+const respondState={editing:null};
+async function viewRespond(id){
+  app.innerHTML=`<span class="spin"></span>`;
+  let ev, my=null;
+  const saved=LS.get("sched:resp:"+id);
+  try{
+    ev=await api("sched_get_event",{p_id:id});
+    if(saved) my=await api("sched_get_my",{p_response_id:saved.id, p_edit_token:saved.tok});
+  }catch(e){ app.innerHTML=`<div class="card empty">${esc(e.message)}</div>`; return; }
+  if(!ev){ app.innerHTML=`<div class="card empty">このページは見つかりませんでした。<br>リンクが正しいか確認してください。</div>`; return; }
+  if(saved && !my) LS.del("sched:resp:"+id);
+  document.title=ev.title;
+  const st=ev.settings;
+  const head=`<div class="card">
+      <h1>${esc(ev.title)}</h1>
+      ${ev.note?`<p style="white-space:pre-wrap;color:var(--ink2)">${esc(ev.note)}</p>`:""}
+      <p class="muted small" style="margin:0">${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1回 ${durLabel(st.duration)}${ev.deadline&&ev.open?` ・ 締切 ${fmtDT(ev.deadline)}`:""}</p>
+    </div>`;
+
+  if(my && ev.published){
+    const a=my.assigned;
+    app.innerHTML = head + `<div class="card">
+      <p class="muted" style="margin:0">${esc(my.name)}さんの日程</p>
+      ${a ? `<div class="big-answer">${esc(slotLabel(a))}</div><p class="muted small" style="margin:0">この日時でお待ちしています。</p>`
+          : `<div class="big-answer" style="color:var(--warn)">調整中</div><p class="muted small" style="margin:0">いただいた日時では調整がつきませんでした。あらためてご連絡します。</p>`}
+    </div>`;
+    return;
+  }
+  if(!ev.open || (my && respondState.editing!==id)){
+    app.innerHTML = head + (my ? `<div class="card">
+        <div class="notice ok">受け付けました。ありがとうございます。</div>
+        <h2>${esc(my.name)}さんの空き日時</h2>
+        <p class="small" style="color:var(--ink2)">${esc(availSummary(my.avail))}</p>
+        ${my.comment?`<p class="muted small">ひとこと：${esc(my.comment)}</p>`:""}
+        ${ev.open ? `<button class="btn wide" id="edit">内容を直す</button>` : ""}
+        <p class="muted small" style="margin:10px 0 0">日程が決まったら、このページ（この端末で同じリンク）に表示されます。</p>
+      </div>` : `<div class="card empty">受付は終了しました。</div>`);
+    if($("#edit")) $("#edit").onclick=()=>{ respondState.editing=id; viewRespond(id); };
+    return;
+  }
+
+  const rows = my ? my.avail.map(a=>({...a})) : [];
+  app.innerHTML = head + `
+    <form class="card" id="resp" autocomplete="off">
+      <div class="field"><label class="f" for="name">お名前</label>
+        <input type="text" id="name" maxlength="50" value="${esc(my?.name||LS.get("sched:name")||"")}" placeholder="例：山田 花子" required></div>
+      <label class="f">空いている日時</label>
+      <div id="ed" class="field"></div>
+      <div class="field"><label class="f" for="comment">ひとこと（任意）</label>
+        <input type="text" id="comment" maxlength="500" value="${esc(my?.comment||"")}"></div>
+      <button class="btn pri big" id="send">送信する</button>
+      ${my?`<button type="button" class="btn ghost big" id="cancel" style="margin-top:8px">やめる</button>`:""}
+      <p class="muted small" style="margin:10px 0 0">空いている日が多いほど調整しやすくなります。送った順番は関係ありません。</p>
+    </form>`;
+  availEditor($("#ed"), st, rows);
+  if($("#cancel")) $("#cancel").onclick=()=>{ respondState.editing=null; viewRespond(id); };
+  $("#resp").onsubmit=async e=>{
+    e.preventDefault();
+    const name=$("#name").value.trim();
+    if(!name) return toast("お名前を入れてください");
+    if(!rows.length) return toast("空いている日を1つ以上選んでください");
+    const bad=validRows(rows); if(bad) return toast(bad);
+    const cred = saved && my ? saved : {id:uuid(), tok:token()};
+    const btn=$("#send"); btn.disabled=true;
+    try{
+      await api("sched_submit",{p_event_id:id, p_response_id:cred.id, p_edit_token:cred.tok, p_name:name, p_avail:rows, p_comment:$("#comment").value.trim()});
+      LS.set("sched:resp:"+id, cred); LS.set("sched:name", name);
+      respondState.editing=null;
+      viewRespond(id);
+    }catch(err){ toast(err.message); btn.disabled=false; }
+  };
+}
+
+/* ======================================================
+   主催者の画面
+   ====================================================== */
+const A={ev:null, k:null, work:null, editing:null};   // work: 画面上で編集中の割り当て / editing: 入力中のお客さんid
+
+async function viewAdmin(id,k){
+  if(!A.ev || A.ev.id!==id){ app.innerHTML=`<span class="spin"></span>`; A.editing=null; }
+  let ev;
+  try{ ev=await api("sched_admin_get",{p_id:id, p_admin_token:k}); }
+  catch(e){ app.innerHTML=`<div class="card empty">${esc(e.message)}</div>`; return; }
+  if(!ev){ app.innerHTML=`<div class="card empty">この予定は見つからないか、管理用リンクが正しくありません。</div>`; forgetMine(id); return; }
+  rememberMine({id, k, title:ev.title});
+  Object.assign(A,{ev, k, work: ev.assignment ? {...ev.assignment} : null});
+  renderAdmin();
+  timer=setInterval(()=>{ if(document.visibilityState==="visible" && !A.editing && isOpen(A.ev) && !document.activeElement?.matches("input,select,textarea")) reload(); }, 20000);
+}
+const isOpen = ev => !ev.assignment && (!ev.deadline || new Date(ev.deadline)>new Date());
+async function reload(keepWork=false){
+  try{
+    const n=await api("sched_admin_get",{p_id:A.ev.id, p_admin_token:A.k});
+    if(!n) return;
+    A.ev=n; if(!keepWork) A.work = n.assignment ? {...n.assignment} : null;
+    renderAdmin();
+  }catch(e){ toast(e.message); }
+}
+async function patch(p, msg){
+  try{ await api("sched_admin_update",{p_id:A.ev.id, p_admin_token:A.k, p_patch:p}); if(msg) toast(msg); await reload(); return true; }
+  catch(e){ toast(e.message); return false; }
+}
+
+function renderAdmin(){
+  if(A.editing) return renderEditCustomer();
+  const {ev,k,work}=A, st=ev.settings, R=ev.responses;
+  document.title=`${ev.title}｜日程あわせ`;
+  const open=isOpen(ev);
+  const status = ev.published ? ["done","結果を公開中"] : ev.assignment ? ["closed","割り振り済み"] : ["open","受付中"];
+  let h = `
+    <div class="card">
+      <div class="row" style="margin-bottom:6px"><span class="nogrow pill ${status[0]}">${status[1]}</span><span></span></div>
+      <h1>${esc(ev.title)}</h1>
+      <p class="muted small" style="margin:0">${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1件 ${durLabel(st.duration)}${st.gap?` ・ 前後 ${durLabel(st.gap)}あける`:""} ・ ${hm(st.dayStart)}–${hm(st.dayEnd)}${st.perDay?` ・ 1日${st.perDay}件まで`:""}</p>
+    </div>`;
+
+  // お客さん一覧
+  const cands = Object.fromEntries(R.map(r=>[r.id, candidatesOf(r,st).length]));
+  h += `<div class="card">
+    <div class="row" style="margin-bottom:6px"><h2 class="grow" style="margin:0">お客さん（${R.length}人）</h2></div>
+    ${R.length ? `<ul class="list">${R.map(r=>`<li style="align-items:flex-start">
+        <div class="grow">
+          <b>${esc(r.name)}</b>${r.by_admin?"":`<span class="tag">本人が入力</span>`}${cands[r.id]?"":`<span class="tag ng">入る時間なし</span>`}
+          <div class="small" style="color:var(--ink2)">${esc(availSummary(r.avail))}</div>
+          ${r.comment?`<div class="muted small">「${esc(r.comment)}」</div>`:""}
+        </div>
+        <button class="btn sm nogrow" data-edit="${esc(r.id)}">編集</button></li>`).join("")}</ul>`
+      : `<p class="muted small">まだいません。お客さんから聞いた空き日時を入力してください。</p>`}
+    <button class="btn pri wide" id="addCust" style="margin-top:10px">＋ お客さんの空き日時を入力</button>
+  </div>`;
+
+  // 割り振り
+  if(!ev.assignment){
+    h += `<div class="card"><h2>割り振り</h2>
+      <p class="muted small">全員の空き時間を見て、重ならないように一括で決めます。入力した順番は関係ありません。</p>
+      <button class="btn pri big" id="run" ${R.length?"":"disabled"}>日程を割り振る</button></div>`;
+  } else h += resultHtml();
+
+  // お客さん自身に入力してもらう
+  h += `<details class="card" ${open && R.some(r=>!r.by_admin) ? "open":""}><summary>お客さんに直接入力してもらう</summary>
+      <p class="muted small" style="margin-top:8px">このリンクを送ると、お客さんが自分で空き日時を入力できます（名前と日時を選ぶだけ）。ほかの人の入力は見えません。</p>
+      <div class="share"><input type="text" readonly value="${esc(shareUrl(ev.id))}" aria-label="お客さん用リンク"><button class="btn nogrow" id="copy">コピー</button></div>
+      ${navigator.share?`<button class="btn wide" id="nshare" style="margin-top:8px">共有する</button>`:""}
+      <details style="margin-top:8px"><summary class="small">QRコード</summary><div class="qr" id="qr"></div></details>
+      <div class="field" style="margin:14px 0 0"><label class="f" for="dl">入力の締切（任意）</label>
+        <div class="row"><input type="datetime-local" id="dl" value="${ev.deadline?toLocalInput(new Date(ev.deadline)):""}"><button class="btn nogrow" id="saveDl">保存</button></div>
+        <p class="muted small" style="margin:6px 0 0">${ev.assignment?"割り振り後は、お客さんは入力できません。":open?"受付中です。締切を空にすると締切なしになります。":"締切を過ぎたので受付を終了しています。"}</p></div>
+    </details>`;
+
+  h += `<details class="card"><summary>設定を変える・削除</summary>
+      <div class="field" style="margin-top:12px"><label class="f" for="e_title">タイトル</label><input type="text" id="e_title" maxlength="100" value="${esc(ev.title)}"></div>
+      <div class="field"><label class="f" for="e_note">お客さんへのメモ（任意）</label><textarea id="e_note" maxlength="1000" placeholder="例：場所は〇〇です">${esc(ev.note)}</textarea></div>
+      ${settingsFields(st)}
+      <label class="f">あなたが対応できない日（タップで切り替え）</label>
+      <div id="ngcal"></div>
+      <button class="btn pri wide" id="saveSt">設定を保存</button>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <p class="muted small">このページのリンク（管理用）を保存しておくと、ほかの端末からも開けます。お客さんには送らないでください。</p>
+      <button class="btn wide" id="copyAdmin" style="margin-bottom:8px">管理用リンクをコピー</button>
+      <button class="btn danger wide" id="delete">この予定を削除</button>
+    </details>`;
+
+  app.innerHTML=h;
+  bindAdmin();
+}
+
+function resultHtml(){
+  const {ev,work}=A, st=ev.settings, R=ev.responses, byId=new Map(R.map(r=>[r.id,r]));
+  const assigned=R.filter(r=>work[r.id]), un=R.filter(r=>!work[r.id]);
+  const fresh=R.filter(r=>!(r.id in ev.assignment));
+  const gap=st.gap||0;
+  // おかしな所のチェック（手で動かしたとき・あとから入力が変わったとき）
+  const warn={};
+  const slots=assigned.map(r=>({id:r.id, date:work[r.id].date, s:toMin(work[r.id].start), e:toMin(work[r.id].end)}));
+  for(const a of slots){
+    const c=candidatesOf(byId.get(a.id),st);
+    if(!c.some(x=>x.date===a.date&&x.s===a.s)) warn[a.id]="空き時間外";
+    if(slots.some(b=>b!==a && clash(a,b,gap))) warn[a.id]="時間が重なっています";
+  }
+  if(st.perDay){ const cnt={}; slots.forEach(a=>cnt[a.date]=(cnt[a.date]||0)+1); slots.forEach(a=>{ if(cnt[a.date]>st.perDay) warn[a.id]||="1日の件数オーバー"; }); }
+  const dirty=JSON.stringify(work)!==JSON.stringify(ev.assignment);
+  const days=[...new Set(assigned.map(r=>work[r.id].date))].sort();
+
+  return `<div class="card">
+    <h2>割り振り結果</h2>
+    <div class="notice ${un.length?"warn":"ok"}">${un.length?`${R.length}人中 ${assigned.length}人が決まりました。<b>入らなかった人 ${un.length}人</b>`:`全員（${R.length}人）の日程が決まりました`}</div>
+    ${fresh.length?`<div class="notice warn">割り振りのあとに追加した人がいます（${fresh.map(r=>esc(r.name)).join("、")}）。「もう一度割り振る」を押してください。</div>`:""}
+    ${days.map(d=>`<div class="res-day"><div class="d">${dayLabel(d)}</div>
+      ${assigned.filter(r=>work[r.id].date===d).sort((a,b)=>work[a.id].start.localeCompare(work[b.id].start)).map(r=>`
+        <div class="res-item"><span class="t">${hm(work[r.id].start)}–${hm(work[r.id].end)}</span><span class="who">${esc(r.name)}${warn[r.id]?`<span class="tag ng">${warn[r.id]}</span>`:""}</span>
+        <button class="btn sm nogrow" data-msg="${esc(r.id)}" title="連絡用の文をコピー">文をコピー</button></div>`).join("")}
+    </div>`).join("")}
+    ${un.length?`<div class="res-day"><div class="d" style="color:var(--ng)">入らなかった人</div>
+      ${un.map(r=>`<div class="res-item"><span class="who">${esc(r.name)}${candidatesOf(r,st).length?"":`<span class="tag ng">入る時間なし</span>`}</span></div>`).join("")}
+      <p class="muted small" style="margin:6px 0 0">空き日時を増やしてもらうか、下の「手で動かす」で調整してください。</p></div>`:""}
+
+    <details style="margin-top:10px"><summary>手で動かす</summary>
+      <ul class="list" style="margin-top:6px">${R.map(r=>{ const cur=work[r.id]; const cs=candidatesOf(r,st);
+        return `<li><span class="grow"><b>${esc(r.name)}</b></span>
+        <select class="nogrow" data-person="${esc(r.id)}" style="width:auto;max-width:65%">
+          <option value="">（未定）</option>
+          ${cur && !cs.some(c=>c.date===cur.date&&fromMin(c.s)===cur.start) ? `<option selected>${esc(slotLabel(cur))}</option>`:""}
+          ${cs.map(c=>{ const v=`${c.date}|${fromMin(c.s)}|${fromMin(c.e)}`; const busy=slots.some(b=>b.id!==r.id && clash(c,b,gap));
+            return `<option value="${v}" ${cur&&cur.date===c.date&&cur.start===fromMin(c.s)?"selected":""}>${esc(slotLabel({date:c.date,start:fromMin(c.s),end:fromMin(c.e)}))}${busy?" ※重なる":""}</option>`; }).join("")}
+        </select></li>`; }).join("")}</ul>
+    </details>
+    ${dirty?`<button class="btn pri big" id="saveWork" style="margin-top:12px">変更を保存</button>`:""}
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="rerun">もう一度割り振る</button>
+      <button class="btn" id="copyAll">一覧をコピー</button>
+    </div>
+    ${R.some(r=>!r.by_admin) ? (ev.published
+      ? `<div class="notice ok" style="margin:12px 0 8px">自分で入力したお客さんは、同じリンクを開くと自分の日程を見られます。</div><button class="btn wide" id="unpublish">公開をやめる</button>`
+      : `<button class="btn pri wide" id="publish" style="margin-top:12px" ${dirty?"disabled":""}>結果をお客さんのページに表示する</button>`) : ""}
+    <button class="btn ghost wide" id="reopen" style="margin-top:8px">割り振りを取り消す</button>
+  </div>`;
+}
+
+function bindAdmin(){
+  const {ev,k}=A, st=ev.settings;
+  $$("[data-edit]").forEach(b=>b.onclick=()=>{ A.editing=b.dataset.edit; renderAdmin(); scrollTo(0,0); });
+  $("#addCust").onclick=()=>{ A.editing="new"; renderAdmin(); scrollTo(0,0); };
+  $("#copy").onclick=()=>copyText(shareUrl(ev.id),"リンクをコピーしました");
+  if($("#nshare")) $("#nshare").onclick=()=>navigator.share({title:ev.title, text:`${ev.title}：空いている日時を教えてください`, url:shareUrl(ev.id)}).catch(()=>{});
+  if(window.qrcode){ const q=qrcode(0,"M"); q.addData(shareUrl(ev.id)); q.make(); $("#qr").innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }
+  $("#saveDl").onclick=()=>{ const v=$("#dl").value; patch({deadline: v ? new Date(v).toISOString() : null}, v?"締切を保存しました":"締切なしにしました"); };
+  $("#copyAdmin").onclick=()=>copyText(adminUrl(ev.id,k),"管理用リンクをコピーしました");
+  $("#delete").onclick=async()=>{
+    if(!confirm(`「${ev.title}」を削除します。入力した内容もすべて消えます。よろしいですか？`)) return;
+    try{ await api("sched_admin_delete",{p_id:ev.id, p_admin_token:k}); forgetMine(ev.id); A.ev=null; toast("削除しました"); go("./"); }catch(e){ toast(e.message); }
+  };
+  // 対応できない日
+  const ng=[...(st.ng||[])];
+  const drawNg=()=>{
+    const fake={...st, ng:[]};
+    const rows=ng.map(d=>({date:d}));
+    const root=$("#ngcal");
+    availEditor(root, fake, rows);
+    $$(".sub, p.muted", root).forEach(e=>e.remove());   // 時間の行は使わない
+    $$("[data-day]",root).forEach(b=>b.onclick=()=>{ const d=b.dataset.day, i=ng.indexOf(d); i>=0?ng.splice(i,1):ng.push(d); drawNg(); });
+  };
+  drawNg();
+  $("#saveSt").onclick=async()=>{
+    const [s,err]=readSettings({...st, ng}); if(err) return toast(err);
+    const title=$("#e_title").value.trim(); if(!title) return toast("タイトルを入れてください");
+    if(ev.assignment && JSON.stringify(s)!==JSON.stringify(st)) toast("設定を変えたので、必要なら「もう一度割り振る」を押してください");
+    await patch({title, note:$("#e_note").value.trim(), settings:s}, "保存しました");
+  };
+
+  const runAlloc=async(shuffle)=>{
+    const t0=Date.now();
+    const a=allocate(ev.responses, st, shuffle);
+    A.work=a;
+    await patch({assignment:a, published:false}, shuffle?"別の組み合わせで割り振りました":"割り振りました");
+  };
+  if($("#run")) $("#run").onclick=()=>{
+    if(ev.responses.some(r=>!r.by_admin) || isOpen(ev)) {
+      if(!confirm("割り振ると、お客さん用リンクからの入力は締め切られます。よろしいですか？")) return;
+    }
+    runAlloc(false);
+  };
+  if(!ev.assignment) return;
+  $("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、もう一度割り振りますか？")) return; runAlloc(true); };
+  $$("[data-person]").forEach(sel=>sel.onchange=()=>{
+    const [date,start,end]=sel.value.split("|");
+    A.work={...A.work, [sel.dataset.person]: sel.value ? {date,start,end} : null};
+    renderAdmin(); $("details:has([data-person])")?.setAttribute("open","");
+  });
+  if($("#saveWork")) $("#saveWork").onclick=()=>patch({assignment:A.work}, "保存しました");
+  if($("#publish")) $("#publish").onclick=()=>patch({published:true}, "お客さんのページに表示しました");
+  if($("#unpublish")) $("#unpublish").onclick=()=>patch({published:false}, "表示をやめました");
+  $("#reopen").onclick=()=>{ if(!confirm("割り振り結果を取り消しますか？")) return; A.work=null; patch({assignment:null, published:false}, "取り消しました"); };
+  const R=ev.responses, w=A.work;
+  $$("[data-msg]").forEach(b=>b.onclick=()=>{
+    const r=R.find(x=>x.id===b.dataset.msg), a=w[r.id];
+    copyText(`${r.name}様\n${ev.title}の日程は\n${slotLabel(a)}\nに決まりました。よろしくお願いいたします。`, `${r.name}さん宛の文をコピーしました`);
+  });
+  $("#copyAll").onclick=()=>{
+    const lines=[`【${ev.title}】`];
+    const as=R.filter(r=>w[r.id]).sort((a,b)=>(w[a.id].date+w[a.id].start).localeCompare(w[b.id].date+w[b.id].start));
+    for(const r of as) lines.push(`${slotLabel(w[r.id])}　${r.name}様`);
+    const un=R.filter(r=>!w[r.id]); if(un.length) lines.push(`未定：${un.map(r=>r.name+"様").join("、")}`);
+    copyText(lines.join("\n"),"一覧をコピーしました");
+  };
+}
+
+/* ---------- 主催者がお客さんの空き日時を入力する画面 ---------- */
+function renderEditCustomer(){
+  const {ev}=A, st=ev.settings;
+  const r = A.editing==="new" ? null : ev.responses.find(x=>x.id===A.editing);
+  if(A.editing!=="new" && !r){ A.editing=null; return renderAdmin(); }
+  const rows = r ? r.avail.map(a=>({...a})) : [];
+  app.innerHTML = `<form class="card" id="cust" autocomplete="off">
+      <h2>${r?"お客さんの空き日時を直す":"お客さんの空き日時を入力"}</h2>
+      ${ev.assignment?`<div class="notice warn">割り振り済みです。保存したあと、必要なら「もう一度割り振る」を押してください。</div>`:""}
+      <div class="field"><label class="f" for="cname">お名前</label>
+        <input type="text" id="cname" maxlength="50" value="${esc(r?.name||"")}" placeholder="例：山田さん" required></div>
+      <details class="sub" ${r?"":"open"}><summary>LINEの文面を貼って読み取る</summary>
+        <textarea id="paste" placeholder="例）&#10;3日 10時〜15時&#10;5日、8日は終日OK&#10;12/10 午後&#10;14日 13:00以降" style="margin-top:8px"></textarea>
+        <button type="button" class="btn wide" id="parse" style="margin-top:8px">読み取ってカレンダーに入れる</button>
+        <p class="muted small" style="margin:6px 0 0">読み取り結果は下のカレンダーで確認・修正できます。日付だけのときは対応時間（${hm(st.dayStart)}–${hm(st.dayEnd)}）で入ります。</p>
+      </details>
+      <label class="f">空いている日時</label>
+      <div id="ed" class="field"></div>
+      <div class="field"><label class="f" for="ccomment">メモ（任意・お客さんには見えません）</label>
+        <input type="text" id="ccomment" maxlength="500" value="${esc(r?.comment||"")}"></div>
+      <button class="btn pri big" id="csave">保存</button>
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="btn ghost" id="cback">戻る</button>
+        ${r?`<button type="button" class="btn ghost danger" id="cdel">このお客さんを削除</button>`:""}
+      </div>
+    </form>`;
+  const ed=availEditor($("#ed"), st, rows, {forAdmin:true});
+  $("#parse").onclick=()=>{
+    const {avail, skipped}=parseText($("#paste").value, st);
+    let added=0;
+    for(const a of avail){ if(!rows.some(x=>x.date===a.date&&x.from===a.from&&x.to===a.to)){ rows.push(a); added++; } }
+    ed.render();
+    toast(added ? `${added}件読み取りました${skipped.length?`（期間外の${skipped.length}件は除外）`:""}` : "日時を読み取れませんでした。カレンダーから入力してください");
+  };
+  $("#cback").onclick=()=>{ A.editing=null; renderAdmin(); };
+  if($("#cdel")) $("#cdel").onclick=async()=>{
+    if(!confirm(`${r.name}さんを削除しますか？`)) return;
+    try{ await api("sched_admin_delete_response",{p_id:ev.id, p_admin_token:A.k, p_response_id:r.id}); A.editing=null; toast("削除しました"); reload(true); }
+    catch(e){ toast(e.message); }
+  };
+  $("#cust").onsubmit=async e=>{
+    e.preventDefault();
+    const name=$("#cname").value.trim();
+    if(!name) return toast("お名前を入れてください");
+    if(!rows.length) return toast("空いている日を1つ以上選んでください");
+    const bad=validRows(rows); if(bad) return toast(bad);
+    const btn=$("#csave"); btn.disabled=true;
+    try{
+      await api("sched_admin_put_response",{p_id:ev.id, p_admin_token:A.k, p_response_id:r?.id||uuid(), p_name:name, p_avail:rows, p_comment:$("#ccomment").value.trim()});
+      A.editing=null; toast(r?"保存しました":`${name}さんを追加しました`); reload(true);
+    }catch(err){ toast(err.message); btn.disabled=false; }
+  };
+}
+
+route();
+</script>
+</body>
+</html>
