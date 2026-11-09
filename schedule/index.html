@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>日程あわせ</title>
+<title>日程調整アプリ</title>
 <meta name="description" content="お客さんの空き日を表に入れて、重ならないように自動で割り振る">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='46' rx='8' fill='%23256f6a'/%3E%3Crect x='6' y='10' width='52' height='13' rx='6' fill='%23173f3c'/%3E%3Cpath d='M20 38l8 8 16-16' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
@@ -128,7 +128,7 @@ table.mv select{padding:3px 4px;border:1px solid var(--line);border-radius:6px;b
 <div class="wrap">
   <header class="top">
     <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="46" rx="8" fill="#256f6a"/><rect x="6" y="10" width="52" height="13" rx="6" fill="#173f3c"/><path d="M20 38l8 8 16-16" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span class="brand">日程あわせ</span>
+    <span class="brand">日程調整アプリ</span>
     <div class="month">
       <button class="btn icon" id="prev" aria-label="前の月">◀</button>
       <b id="mlabel"></b>
@@ -498,7 +498,7 @@ function later(f){ if(pointerDown) pendingDraw=f; else setTimeout(f,0); }
 function render(){
   const p=curMonth.split("-");
   $("#mlabel").textContent=`${p[0]}年${+p[1]}月`;
-  document.title=`${+p[1]}月｜日程あわせ`;
+  document.title=`${+p[1]}月｜日程調整アプリ`;
   $("#help").open = !named().length;
   renderSettings(); renderSheet(); renderResult();
   const prev=DB.months[shiftMonth(curMonth,-1)], have=new Set(named().map(x=>x.name.trim()));
@@ -1084,7 +1084,7 @@ $("#imp").onchange=ev=>{
   const fr=new FileReader();
   fr.onload=()=>{
     let j; try{ j=JSON.parse(fr.result); }catch(e){ return toast("このファイルは読み込めません"); }
-    if(!j || j.app!=="nichitei" || !j.data || !j.data.months) return toast("日程あわせのバックアップではありません");
+    if(!j || j.app!=="nichitei" || !j.data || !j.data.months) return toast("日程調整アプリのバックアップではありません");
     if(!confirm("バックアップを読み込みます。いまの内容は置きかわります。よろしいですか？")) return;
     DB=normalize(j.data); save(); render(); toast("読み込みました");
   };
