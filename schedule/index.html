@@ -2,155 +2,171 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>日程あわせ</title>
-<meta name="description" content="お客さんの空き日時から、重ならないようにセッションを割り振る">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="日程あわせ">
-<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<meta name="description" content="お客さんの空き日を表に入れて、重ならないように自動で割り振る">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='10' width='52' height='46' rx='8' fill='%23256f6a'/%3E%3Crect x='6' y='10' width='52' height='13' rx='6' fill='%23173f3c'/%3E%3Cpath d='M20 38l8 8 16-16' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
 :root{
   --bg:#f5f3ee; --card:#ffffff; --card2:#efece5; --ink:#1c1e21; --ink2:#4f545b; --ink3:#767b83;
-  --line:#dcd8cf; --acc:#256f6a; --acc-ink:#ffffff; --acc-soft:#dcefec; --acc2:#173f3c;
+  --line:#dcd8cf; --grid:#e3dfd6; --acc:#256f6a; --acc-ink:#ffffff; --acc-soft:#dcefec; --acc2:#173f3c;
+  --pick:#cfeedd; --pick-ink:#1d6b3c; --has:#fbf6e3;
   --warn:#9a6212; --warn-soft:#f8ead2; --ng:#b2392b; --ng-soft:#f7dfdb; --ok:#2f7a45; --ok-soft:#dcefe1;
-  --sun:#c0392b; --sat:#2f6db0;
-  --r:14px; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
-  --font:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --sun:#c0392b; --sat:#2f6db0; --off:#e9e6df;
+  --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){
   :root{
     --bg:#14161a; --card:#1d2025; --card2:#262a30; --ink:#e9eaec; --ink2:#b5b9bf; --ink3:#8d929a;
-    --line:#343840; --acc:#5fbdb5; --acc-ink:#0d1f1d; --acc-soft:#1c3533; --acc2:#9fdcd6;
+    --line:#343840; --grid:#30343b; --acc:#5fbdb5; --acc-ink:#0d1f1d; --acc-soft:#1c3533; --acc2:#9fdcd6;
+    --pick:#1f4a33; --pick-ink:#9fe0b6; --has:#2b2a1f;
     --warn:#e3ad5c; --warn-soft:#3a2d18; --ng:#ef7f70; --ng-soft:#3c221f; --ok:#79c58f; --ok-soft:#1d3324;
-    --sun:#f08a7e; --sat:#8ab6ea;
-    --shadow:none;
+    --sun:#f08a7e; --sat:#8ab6ea; --off:#202328;
   }
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6;min-height:100dvh}
-button,input,select,textarea{font:inherit;color:inherit}
-.wrap{max-width:640px;margin:0 auto;padding:16px 16px calc(40px + env(safe-area-inset-bottom))}
-header.top{display:flex;align-items:center;gap:10px;padding:6px 0 14px}
-header.top a{color:inherit;text-decoration:none;display:flex;align-items:center;gap:10px}
-header.top b{font-size:18px;letter-spacing:.04em}
-.logo{width:30px;height:30px;flex:none}
-h1{font-size:22px;line-height:1.35;margin:0 0 6px}
-h2{font-size:16px;margin:0 0 10px}
-p{margin:0 0 10px}
-.muted{color:var(--ink3);font-size:14px}
-.small{font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:0 0 14px;box-shadow:var(--shadow)}
-.sub{background:var(--card2);border-radius:12px;padding:12px;margin:0 0 12px}
-label.f{display:block;font-size:14px;font-weight:700;color:var(--ink2);margin:0 0 6px}
-.field{margin:0 0 14px}
-input[type=text],input[type=date],input[type=datetime-local],textarea,select{
-  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-height:46px}
-select{padding-right:6px}
-textarea{min-height:90px;resize:vertical}
-input:focus,textarea:focus,select:focus{outline:2px solid var(--acc);outline-offset:1px;border-color:transparent}
-.row{display:flex;gap:8px;align-items:center}
-.row > *{flex:1 1 0;min-width:0}
-.row > .nogrow{flex:0 0 auto}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1600px;margin:0 auto;padding:16px 20px 60px}
+header.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.logo{width:28px;height:28px;flex:none}
+.brand{font-weight:700;font-size:18px;margin-right:auto}
+.month{display:flex;align-items:center;gap:6px}
+.month b{font-size:20px;min-width:120px;text-align:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);
-  border-radius:10px;padding:10px 14px;min-height:46px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink)}
-.btn:active{transform:translateY(1px)}
+  border-radius:9px;padding:7px 14px;min-height:38px;font-weight:700;cursor:pointer;color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--ink3)}
 .btn.pri{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
-.btn.big{width:100%;min-height:54px;font-size:17px}
-.btn.wide{width:100%}
-.btn.ghost{background:transparent}
-.btn.danger{color:var(--ng);border-color:var(--ng-soft)}
-.btn.sm{min-height:36px;padding:5px 10px;font-size:14px}
-.btn[disabled]{opacity:.5;cursor:not-allowed}
-.linkbtn{border:0;background:none;color:var(--acc);font-weight:700;font-size:14px;padding:4px 0;cursor:pointer}
-.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--card2);color:var(--ink2);white-space:nowrap}
-.pill.open{background:var(--ok-soft);color:var(--ok)}
-.pill.closed{background:var(--warn-soft);color:var(--warn)}
-.pill.done{background:var(--acc-soft);color:var(--acc2)}
-.list{list-style:none;margin:0;padding:0}
-.list > li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
-.list > li:first-child{border-top:0}
-.grow{flex:1;min-width:0}
-.x{border:0;background:transparent;color:var(--ink3);font-size:22px;line-height:1;width:40px;height:40px;border-radius:8px;cursor:pointer;flex:none}
-.x:hover{background:var(--card2)}
-.tag{display:inline-block;font-size:12px;padding:1px 7px;border-radius:6px;background:var(--card2);color:var(--ink2);margin-left:6px;font-weight:500;white-space:nowrap}
-.tag.ng{background:var(--ng-soft);color:var(--ng)}
-.tag.warn{background:var(--warn-soft);color:var(--warn)}
-.notice{border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:14px}
+.btn.big{min-height:46px;padding:8px 22px;font-size:16px}
+.btn.sm{min-height:30px;padding:3px 10px;font-size:13px}
+.btn.icon{width:38px;padding:0}
+.btn.danger{color:var(--ng)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+.muted{color:var(--ink3)} .small{font-size:13px}
+h2{font-size:16px;margin:0 0 10px}
+/* 使い方・設定 */
+.help{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:14px;color:var(--ink2)}
+.help .step{display:flex;align-items:center;gap:6px}
+.help .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--acc);color:var(--acc-ink);font-weight:700;font-size:13px;align-items:center;justify-content:center;flex:none}
+.help code{background:var(--card2);border-radius:5px;padding:1px 6px;font-family:inherit;font-weight:700;color:var(--ink)}
+.settings{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;font-size:14px}
+.settings label{display:flex;align-items:center;gap:6px;color:var(--ink2)}
+.settings select{padding:5px 6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);min-height:34px}
+/* 表 */
+.sheet-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);max-height:calc(100vh - 230px);min-height:200px}
+table.sheet{border-collapse:separate;border-spacing:0;font-size:13px}
+.sheet th,.sheet td{border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);padding:0;height:44px;background:var(--card)}
+.sheet thead th{position:sticky;top:0;z-index:2;background:var(--card2);height:48px;font-weight:700;min-width:58px;cursor:pointer;user-select:none}
+.sheet thead th .wd{display:block;font-size:11px;font-weight:500}
+.sheet thead th.sun{color:var(--sun)} .sheet thead th.sat{color:var(--sat)}
+.sheet thead th.off{background:var(--off);color:var(--ink3)}
+.sheet thead th:hover:not(.namecol){background:var(--acc-soft)}
+.sheet .namecol{position:sticky;left:0;z-index:1;min-width:150px;width:150px;background:var(--card);border-right:2px solid var(--line)}
+.sheet thead .namecol{z-index:3;background:var(--card2);cursor:default;text-align:left;padding:0 10px;font-size:12px;color:var(--ink3);font-weight:500}
+.sheet tfoot td{position:sticky;bottom:0;background:var(--card2);height:30px;text-align:center;font-size:12px;color:var(--ink3);z-index:1}
+.sheet tfoot td.namecol{z-index:2;text-align:left;padding:0 10px;background:var(--card2)}
+.sheet td.cell{position:relative;min-width:58px;width:58px}
+.sheet td.cell.off{background:var(--off)}
+.sheet td.cell.has{background:var(--has)}
+.sheet td.cell.bad{background:var(--ng-soft)}
+.sheet td.cell.pick{background:var(--pick);box-shadow:inset 0 0 0 2px var(--pick-ink)}
+.sheet td.cell .lbl{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:11px;font-weight:700;color:var(--pick-ink);pointer-events:none;white-space:nowrap}
+.sheet input.c{width:100%;height:100%;border:0;background:transparent;text-align:center;padding:0 2px;font-size:13px;outline:none}
+.sheet td.cell.pick input.c{padding-bottom:12px}
+.sheet input.c:focus,.sheet input.n:focus{box-shadow:inset 0 0 0 2px var(--acc);background:var(--card)}
+.sheet td.cell.off input.c{cursor:not-allowed}
+.namebox{display:flex;align-items:center;height:100%}
+.sheet input.n{flex:1;min-width:0;height:100%;border:0;background:transparent;padding:0 10px;font-weight:700;outline:none}
+.sheet input.n::placeholder{font-weight:500;color:var(--ink3)}
+.namebox .st{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;margin-right:4px;white-space:nowrap}
+.namebox .st.ok{background:var(--ok-soft);color:var(--ok)}
+.namebox .st.ng{background:var(--ng-soft);color:var(--ng)}
+.namebox .del{border:0;background:none;color:var(--ink3);cursor:pointer;font-size:16px;width:26px;height:100%;opacity:0}
+tr:hover .namebox .del,.namebox .del:focus{opacity:1}
+.namebox .del:hover{color:var(--ng)}
+/* 下の操作 */
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.notice{border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:14px}
 .notice.warn{background:var(--warn-soft);color:var(--warn)}
 .notice.ok{background:var(--ok-soft);color:var(--ok)}
-.notice.info{background:var(--acc-soft);color:var(--acc2)}
-.share{display:flex;gap:8px}
-.share input{font-size:13px}
-.qr{display:flex;justify-content:center;padding:10px 0 0}
-.qr svg{width:170px;height:170px;background:#fff;border-radius:8px;padding:8px}
-details > summary{cursor:pointer;font-weight:700;color:var(--ink2);padding:4px 0}
-.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);
-  padding:10px 16px;border-radius:10px;font-size:14px;z-index:10;max-width:calc(100% - 32px);box-shadow:0 4px 20px rgba(0,0,0,.2)}
-.empty{text-align:center;color:var(--ink3);padding:18px 0}
-.spin{display:block;margin:40px auto;width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp .8s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-.steps{margin:0;padding-left:1.3em;color:var(--ink2);font-size:14px}
-.steps li{margin:2px 0}
-/* カレンダー */
-.cal{margin:0 0 12px}
-.cal-h{font-weight:700;font-size:15px;margin:0 0 6px}
-.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-w{text-align:center;font-size:12px;color:var(--ink3);padding:2px 0}
-.cal-w.sun,.cal-d.sun{color:var(--sun)} .cal-w.sat,.cal-d.sat{color:var(--sat)}
-.cal-d{aspect-ratio:1/1;max-height:52px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-weight:700;font-size:15px;cursor:pointer;padding:0;position:relative}
-.cal-d.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
-.cal-d.ngday{background:var(--card2);color:var(--ink3);text-decoration:line-through}
-.cal-d[disabled]{opacity:.35;cursor:default}
-.cal-d .dot{position:absolute;left:50%;bottom:5px;width:5px;height:5px;border-radius:50%;background:currentColor;transform:translateX(-50%)}
-.cal-blank{visibility:hidden}
-/* 空き時間の行 */
-.av-day{padding:8px 0;border-top:1px solid var(--line)}
-.av-day:first-child{border-top:0}
-.av-day .d{font-weight:700;font-size:15px}
-.av-row{display:flex;gap:6px;align-items:center;margin-top:6px}
-.av-row select{flex:1;min-width:0;min-height:42px;padding:6px 8px}
-.av-row .til{flex:none;color:var(--ink3)}
-/* 結果 */
-.res-day{padding:10px 0;border-top:1px solid var(--line)}
-.res-day:first-child{border-top:0}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 24px}
+.res-day{padding:6px 0;border-top:1px solid var(--line)}
 .res-day .d{font-size:13px;font-weight:700;color:var(--ink3)}
-.res-item{display:flex;align-items:center;gap:8px;padding:3px 0}
-.res-item .t{flex:none;font-variant-numeric:tabular-nums;font-weight:500;min-width:96px}
+.res-item{display:flex;align-items:center;gap:8px;padding:2px 0}
+.res-item .t{flex:none;font-variant-numeric:tabular-nums;min-width:92px}
 .res-item .who{flex:1;font-weight:700;min-width:0}
-.big-answer{font-size:22px;font-weight:700;color:var(--acc2);margin:4px 0 8px}
+.res-item select{max-width:220px;padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-size:13px}
+.tag{display:inline-block;font-size:11px;padding:0 6px;border-radius:5px;margin-left:6px;font-weight:700}
+.tag.ng{background:var(--ng-soft);color:var(--ng)}
+details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.tip{position:fixed;z-index:20;background:var(--ink);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:6px;pointer-events:none;white-space:nowrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <a href="./" id="homeLink">
-      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="46" rx="8" fill="#256f6a"/><rect x="6" y="10" width="52" height="13" rx="6" fill="#173f3c"/><path d="M20 38l8 8 16-16" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <b>日程あわせ</b>
-    </a>
+    <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="46" rx="8" fill="#256f6a"/><rect x="6" y="10" width="52" height="13" rx="6" fill="#173f3c"/><path d="M20 38l8 8 16-16" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span class="brand">日程あわせ</span>
+    <div class="month">
+      <button class="btn icon" id="prev" aria-label="前の月">◀</button>
+      <b id="mlabel"></b>
+      <button class="btn icon" id="next" aria-label="次の月">▶</button>
+    </div>
   </header>
-  <main id="app"><span class="spin"></span></main>
+
+  <div class="card help">
+    <span class="step"><span class="num">1</span>名前を入れる</span>
+    <span class="step"><span class="num">2</span>空いている日のマスに入力：<code>○</code>＝いつでも　<code>10-15</code>＝10時〜15時　<code>午後</code>　<code>18以降</code>　<code>10-12,15-18</code></span>
+    <span class="step"><span class="num">3</span>「自動で割り振る」を押す</span>
+    <span class="muted small">日付の見出しをクリックすると休みの日になります</span>
+  </div>
+
+  <div class="card settings" id="settings"></div>
+
+  <div class="sheet-wrap" id="sheetWrap"></div>
+
+  <div class="actions">
+    <button class="btn pri big" id="run">自動で割り振る</button>
+    <button class="btn" id="rerun" hidden>別の組み合わせにする</button>
+    <button class="btn" id="clear" hidden>割り振りを消す</button>
+    <button class="btn" id="copyAll" hidden>結果をコピー</button>
+    <span style="flex:1"></span>
+    <button class="btn" id="carry" hidden>前の月の名前を入れる</button>
+  </div>
+
+  <div id="result"></div>
+
+  <details class="card" style="margin-top:20px">
+    <summary>バックアップ・その他</summary>
+    <p class="muted small" style="margin:10px 0">データはこのパソコンのこのブラウザの中にだけ保存されています（インターネットには送りません）。いつも同じブラウザで開いてください。念のため、ときどき「書き出す」でファイルに保存しておくと安心です（Googleドライブのフォルダに入れておくのがおすすめ）。</p>
+    <p class="muted small" id="bkinfo"></p>
+    <div class="actions" style="margin:0">
+      <button class="btn pri" id="exp">ファイルに書き出す</button>
+      <label class="btn">ファイルから読み込む<input type="file" id="imp" accept=".json,application/json" hidden></label>
+      <span style="flex:1"></span>
+      <button class="btn danger" id="wipe">この月の表を全部消す</button>
+    </div>
+  </details>
 </div>
 <div id="toast" class="toast" hidden></div>
+<div id="tip" class="tip" hidden></div>
 
 <script>
 "use strict";
 /* ---------- 小道具 ---------- */
 const $ = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => [...el.querySelectorAll(s)];
-const app = $("#app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const LS = {
-  get(k){ try{ return JSON.parse(localStorage.getItem(k)) }catch{ return null } },
-  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch{} },
-  del(k){ try{ localStorage.removeItem(k) }catch{} },
-};
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); }
-function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(+c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>+c/4).toString(16)); }
-function token(){ return [...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,"0")).join(""); }
-async function copyText(text,msg){ try{ await navigator.clipboard.writeText(text); toast(msg); }catch{ prompt("コピーしてください", text); } }
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+function copyText(text,msg){
+  const fallback=()=>{ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
+    let ok=false; try{ ok=document.execCommand("copy"); }catch{} ta.remove(); ok?toast(msg):prompt("コピーしてください", text); };
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(()=>toast(msg), fallback); else fallback();
+}
 
 /* ---------- 日付・時刻 ---------- */
 const WD = ["日","月","火","水","木","金","土"];
@@ -159,551 +175,364 @@ const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
 const parseD = s => new Date(s+"T00:00");
 const toMin = hm => { const [h,m]=hm.split(":").map(Number); return h*60+m; };
 const fromMin = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`;
-const hm = s => typeof s==="number" ? `${Math.floor(s/60)}:${pad(s%60)}` : s.replace(/^0(\d)/,"$1");
+const hm = s => s.replace(/^0(\d)/,"$1");
 const dayLabel = s => { const d=parseD(s); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; };
-function fmtDT(iso){ const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) ${d.getHours()}:${pad(d.getMinutes())}`; }
-const toLocalInput = d => `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const slotLabel = a => `${dayLabel(a.date)} ${hm(a.start)}–${hm(a.end)}`;
 function durLabel(m){ const h=Math.floor(m/60), r=m%60; return h ? `${h}時間${r?r+"分":""}` : `${r}分`; }
-function datesBetween(a,b){ const out=[]; for(let d=parseD(a); ymd(d)<=b; d.setDate(d.getDate()+1)) out.push(ymd(d)); return out; }
 const TIMES = Array.from({length:37},(_,i)=>fromMin(360+i*30));   // 6:00〜24:00
-function timeOpts(sel, list=TIMES){ const l=list.includes(sel)||!sel?list:[...list,sel].sort(); return l.map(t=>`<option value="${t}" ${t===sel?"selected":""}>${hm(t)}</option>`).join(""); }
-function slotLabel(a){ return `${dayLabel(a.date)} ${hm(a.start)}–${hm(a.end)}`; }
-function availSummary(avail){
-  return [...avail].sort((a,b)=>(a.date+a.from).localeCompare(b.date+b.from))
-    .map(a=>`${dayLabel(a.date)} ${hm(a.from)}–${hm(a.to)}`).join("、");
+
+/* ======================================================
+   データ（このブラウザの中だけに保存）
+   { settings:{duration,gap,dayStart,dayEnd,perDay},
+     months:{ "2026-12": {people:[{id,name,cells:{"2026-12-03":"10-15"}}], off:[日付], assignment:{sig, map:{id:{date,start,end}|null}} } },
+     backupAt, changedAt }
+   ====================================================== */
+const KEY="nichitei:v2";
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d && d.months) return d; }catch{}
+  return {settings:{duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0}, months:{}, backupAt:null, changedAt:null};
+}
+let DB=load();
+function save(){
+  DB.changedAt=new Date().toISOString();
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }
+  catch{ toast("保存できませんでした。プライベートブラウズを切ってお試しください"); }
+}
+let curMonth = (()=>{ const n=new Date(); n.setMonth(n.getMonth()+1,1); return `${n.getFullYear()}-${pad(n.getMonth()+1)}`; })();
+const M = () => (DB.months[curMonth] ||= {people:[], off:[], assignment:null});
+function monthDates(key=curMonth){ const [y,m]=key.split("-").map(Number); const n=new Date(y,m,0).getDate(); return Array.from({length:n},(_,i)=>`${key}-${pad(i+1)}`); }
+function shiftMonth(key,delta){ const [y,m]=key.split("-").map(Number); const d=new Date(y,m-1+delta,1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; }
+
+/* ======================================================
+   マスの文字を時間帯に読みかえる
+   ○ / いつでも / 終日 → 営業時間まるごと
+   10-15 / 10時〜15時 / 10:30-12 → その時間
+   午前 / 午後 / 夕方 / 夜 / 18以降 / 15まで
+   カンマなどで区切ると複数書ける。読めないときは null。
+   ====================================================== */
+function parseCell(text, st){
+  let t=(text||"").trim();
+  if(!t) return [];
+  t=t.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/：/g,":")
+     .replace(/\s*(-|~|〜|～|ー|－|−|—|から)\s*(?=[0-9午])/g,"-").replace(/\s+/g," ");
+  const lo=toMin(st.dayStart), hi=toMin(st.dayEnd);
+  if(/^(○|◯|〇|o|O|◎|まる|丸|終日|いつでも|OK|ok|可|全日|1日|一日)$/.test(t)) return [{from:lo,to:hi}];
+  const T="(午前|午後|AM|PM|am|pm)?(\\d{1,2})(?::(\\d{2})|時(半)?(?:(\\d{1,2})分)?)?";
+  const tm=(p,h,m,half,m2,guessPm)=>{ h=+h; const pm=/午後|pm/i.test(p||""); if((pm||(!p&&guessPm&&h<8)) && h<12) h+=12; return h*60+(+(m||m2||0))+(half?30:0); };
+  const out=[];
+  for(const seg of t.split(/[,、，\/・ ]+/).filter(Boolean)){
+    let m;
+    if((m=seg.match(new RegExp("^"+T+"-"+T+"(?:時|まで)?$")))){
+      const a=tm(m[1],m[2],m[3],m[4],m[5],true); let b=tm(m[6]||m[1],m[7],m[8],m[9],m[10],true);
+      if(b<=a && b+720<=24*60) b+=720;
+      out.push({from:a,to:b});
+    } else if((m=seg.match(new RegExp("^"+T+"(?:以降|から|-|〜|~|以後)$")))) out.push({from:tm(m[1],m[2],m[3],m[4],m[5],true), to:hi});
+    else if((m=seg.match(new RegExp("^"+T+"(?:まで|以前|迄)$")))) out.push({from:lo, to:tm(m[1],m[2],m[3],m[4],m[5],true)});
+    else if(/^(午前|AM|am)(中)?$/.test(seg)) out.push({from:lo,to:12*60});
+    else if(/^(午後|PM|pm)$/.test(seg)) out.push({from:12*60,to:hi});
+    else if(/^(夕方|夜|夕方以降|夜なら)$/.test(seg)) out.push({from:17*60,to:hi});
+    else if(/^(朝)$/.test(seg)) out.push({from:lo,to:11*60});
+    else return null;
+  }
+  const res=out.map(r=>({from:Math.max(r.from,lo), to:Math.min(r.to,hi)})).filter(r=>r.to>r.from);
+  return out.length && !res.length ? "outside" : res;
+}
+function cellTip(text, st){
+  const r=parseCell(text, st);
+  if(r===null) return "読み取れません（例：○、10-15、午後、18以降）";
+  if(r==="outside") return "営業時間の外です";
+  return r.map(x=>`${hm(fromMin(x.from))}〜${hm(fromMin(x.to))}`).join("、")+(r.every(x=>x.to-x.from<st.duration)?"（1回の時間より短い）":"");
 }
 
 /* ======================================================
    割り振り
-   ------------------------------------------------------
-   1. 各お客さんの空き時間から、所要時間ぶん入る開始時刻を全部ならべる（候補）
-      ※主催者の対応時間・対応できない日・期間の外は除く
-   2. 候補が少ない（選択肢が少ない）人から順に決めていき、
-      ほかの人の候補をなるべくつぶさない時間を優先して入れる
-   3. 全員入らないときは組み合わせを探索して、入れられる人数が最大になるものを選ぶ
-   入力した順番・回答した順番は一切関係しないので、先着順にはならない。
+   1. 各お客さんの空き時間から、1回の時間ぶん入る開始時刻を全部ならべる（候補）
+   2. 候補が少ない人から順に、ほかの人の候補をなるべくつぶさない時間を選ぶ
+   3. 組み合わせを探索して、日程が入る人数がいちばん多くなるものを選ぶ
+   入力した順番は関係しない（同じ条件の人どうしはくじ引きのように決まる）。
    ====================================================== */
-function candidatesOf(resp, st){
+function candidatesOf(p, st, off){
   const dur=st.duration, step = dur%30 ? 15 : 30;
-  const lo=toMin(st.dayStart), hi=toMin(st.dayEnd), ng=new Set(st.ng||[]);
-  const out=[], seen=new Set();
-  for(const a of resp.avail){
-    if(a.date<st.start || a.date>st.end || ng.has(a.date)) continue;
-    const from=Math.max(toMin(a.from),lo), to=Math.min(toMin(a.to),hi);
-    for(let t=Math.ceil(from/step)*step; t+dur<=to; t+=step){
-      const key=a.date+t; if(seen.has(key)) continue; seen.add(key);
-      out.push({date:a.date, s:t, e:t+dur});
-    }
+  const out=[];
+  for(const [date,text] of Object.entries(p.cells)){
+    if(off.has(date)) continue;
+    const rs=parseCell(text, st); if(!Array.isArray(rs)) continue;
+    for(const r of rs) for(let t=Math.ceil(r.from/step)*step; t+dur<=r.to; t+=step)
+      if(!out.some(c=>c.date===date&&c.s===t)) out.push({date, s:t, e:t+dur});
   }
   return out;
 }
 const clash=(a,b,gap)=> a.date===b.date && a.s < b.e+gap && b.s < a.e+gap;
+function rng(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 
-function allocate(responses, st, shuffle=false){
-  const gap=st.gap||0, perDay=st.perDay||0;
-  const rnd = () => shuffle ? Math.random() : 0;
-  const people = responses.map(r=>({id:r.id, cands:candidatesOf(r,st)}));
-  // 候補ごとに「ほかの人の候補といくつ重なるか」を数えて、少ないものから試す
-  for(const p of people){
+function allocate(people, st, off, seed){
+  const gap=st.gap||0, perDay=st.perDay||0, rnd=rng(seed);
+  const P = people.map(p=>({id:p.id, cands:candidatesOf(p,st,off), r:rnd()}));
+  for(const p of P){
     for(const c of p.cands){
-      let n=0; for(const q of people) if(q!==p) for(const d of q.cands) if(clash(c,d,gap)) n++;
+      let n=0; for(const q of P) if(q!==p) for(const d of q.cands) if(clash(c,d,gap)) n++;
       c.score = n + rnd()*0.9;
     }
-    p.cands.sort((a,b)=>a.score-b.score || (a.date+pad(a.s)).localeCompare(b.date+pad(b.s)));
-    p.key = p.cands.length + rnd()*0.9;
+    p.cands.sort((a,b)=>a.score-b.score);
   }
-  const order=[...people].sort((a,b)=>a.key-b.key);
-  const N=order.length, placed=[], perDayCount={}, pick=new Array(N).fill(null);
-  let best=-1, bestPick=null, nodes=0;
-  const t0=performance.now();
-  const fits=c=> (!perDay || (perDayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap));
+  const order=[...P].sort((a,b)=>a.cands.length-b.cands.length || a.r-b.r);
+  const N=order.length, placed=[], dayCount={}, pick=new Array(N).fill(null);
+  let best=-1, bestPick=[], nodes=0; const t0=performance.now();
+  const fits=c=> (!perDay || (dayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap));
   (function dfs(i,count){
-    if(best===N) return;
-    if(++nodes>400000 || (nodes%2000===0 && performance.now()-t0>2000)) return;
+    if(best===N || ++nodes>400000 || (nodes%2000===0 && performance.now()-t0>2500)) return;
     if(count+(N-i)<=best) return;
     if(i===N){ best=count; bestPick=pick.slice(); return; }
     for(const c of order[i].cands){
       if(!fits(c)) continue;
-      placed.push(c); perDayCount[c.date]=(perDayCount[c.date]||0)+1; pick[i]=c;
+      placed.push(c); dayCount[c.date]=(dayCount[c.date]||0)+1; pick[i]=c;
       dfs(i+1,count+1);
-      placed.pop(); perDayCount[c.date]--; pick[i]=null;
+      placed.pop(); dayCount[c.date]--; pick[i]=null;
       if(best===N || nodes>400000) return;
     }
     dfs(i+1,count);
   })(0,0);
-  const out={};
-  order.forEach((p,i)=>{ const c=bestPick&&bestPick[i]; out[p.id]= c ? {date:c.date, start:fromMin(c.s), end:fromMin(c.e)} : null; });
-  return out;
-}
-
-/* ======================================================
-   LINE などの文章から空き日時を読み取る
-   例）「12/3 10時〜15時」「5日、8日は終日OK」「12月10日 午後」「14日 13:00以降」
-   ====================================================== */
-function parseText(text, st){
-  const z2h = s => s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[：]/g,":").replace(/[／]/g,"/");
-  const startD=parseD(st.start);
-  let month=startD.getMonth()+1;
-  const yearFor = m => startD.getFullYear() + (m < startD.getMonth()+1 ? 1 : 0);
-  const lo=st.dayStart, hi=st.dayEnd;
-  const out=[], skipped=[];
-  let lastDates=[], lastAllDay=false;
-  const H = (h,mm,pm) => { h=+h; if(pm && h<12) h+=12; return fromMin(Math.min(24*60, h*60+(+mm||0))); };
-  for(let line of z2h(text).split(/\r?\n/)){
-    const dates=[];
-    line = line.replace(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?|(\d{1,2})\s*日/g, (_,m,d,d2)=>{
-      if(m) month=+m;
-      const dd=+(d||d2);
-      if(month>=1&&month<=12&&dd>=1&&dd<=31) dates.push(`${yearFor(month)}-${pad(month)}-${pad(dd)}`);
-      return " ";
-    }).replace(/[(（][月火水木金土日祝・]+[)）]/g," ");
-    const ranges=[];
-    const T="(午前|午後|AM|PM|am|pm)?\\s*(\\d{1,2})\\s*(?:[:時]\\s*(\\d{2})?\\s*分?|時半)?";
-    line = line.replace(new RegExp(T+"\\s*(?:-|~|〜|～|ー|－|−|—|から)\\s*"+T+"\\s*(?:時|まで)?","g"), (all,p1,h1,m1,p2,h2,m2)=>{
-      if(/時半/.test(all.split(/-|~|〜|～|ー|－|−|—|から/)[0])) m1="30";
-      let pm1=/午後|pm/i.test(p1||""), pm2=/午後|pm/i.test(p2||"")||pm1;
-      let a=+h1, b=+h2;
-      if(!p1 && a<7) pm1=true;
-      if(!p2 && (b<a || b<7) && b<12) pm2=true;
-      ranges.push({from:H(h1,m1,pm1), to:H(h2,m2,pm2)}); return " ";
-    });
-    line = line.replace(new RegExp(T+"\\s*(?:以降|から|～|〜)","g"), (_,p,h,m)=>{ let pm=/午後|pm/i.test(p||"")||(+h<7); ranges.push({from:H(h,m,pm), to:hi}); return " "; });
-    line = line.replace(new RegExp(T+"\\s*(?:まで|以前)","g"), (_,p,h,m)=>{ let pm=/午後|pm/i.test(p||"")||(+h<7); ranges.push({from:lo, to:H(h,m,pm)}); return " "; });
-    if(/午前/.test(line)) ranges.push({from:lo, to:"12:00"});
-    if(/午後/.test(line)) ranges.push({from:"12:00", to:hi});
-    if(/夕方|夜/.test(line)) ranges.push({from:"17:00", to:hi});
-    const good = ranges.filter(r=>r.from<r.to);
-    if(dates.length){
-      const rs = good.length ? good : [{from:lo,to:hi}];
-      for(const d of dates){
-        if(d<st.start || d>st.end){ skipped.push(d); continue; }
-        for(const r of rs) out.push({date:d, ...r});
-      }
-      lastDates=dates.filter(d=>d>=st.start&&d<=st.end); lastAllDay=!good.length;
-    } else if(good.length && lastDates.length && lastAllDay){
-      // 日付の次の行に時間だけ書いてあるとき
-      for(const d of lastDates){
-        const i=out.findIndex(a=>a.date===d && a.from===lo && a.to===hi); if(i>=0) out.splice(i,1);
-        for(const r of good) out.push({date:d, ...r});
-      }
-      lastAllDay=false;
+  // 仕上げ：決まった日の中で、ほかの人と重ならない範囲でなるべく早い「ちょうどの時刻」に寄せる
+  const fin=order.map((p,i)=>bestPick[i]);
+  const pref=c=> (c.s%60?1000:0) + c.s;
+  for(let round=0; round<3; round++){
+    const idx=fin.map((c,i)=>i).filter(i=>fin[i]).sort((a,b)=>fin[a].s-fin[b].s);
+    for(const i of idx){
+      const others=fin.filter((c,j)=>c && j!==i);
+      const better=order[i].cands.filter(c=>c.date===fin[i].date && !others.some(o=>clash(c,o,gap))).sort((a,b)=>pref(a)-pref(b))[0];
+      if(better && pref(better)<pref(fin[i])) fin[i]=better;
     }
   }
-  return {avail:out, skipped};
+  const map={};
+  order.forEach((p,i)=>{ const c=fin[i]; map[p.id]= c ? {date:c.date, start:fromMin(c.s), end:fromMin(c.e)} : null; });
+  return map;
 }
+// 入力が割り振りのあとで変わったかを見るための印
+const signature = () => JSON.stringify([DB.settings, M().off, M().people.map(p=>[p.id,p.cells])]);
 
 /* ======================================================
-   空き日時の入力部品（カレンダーで日をタップ → 時間を選ぶ）
+   画面
    ====================================================== */
-function availEditor(root, st, rows, {forAdmin=false}={}){
-  const ng=new Set(st.ng||[]);
-  const months=[]; { const d=parseD(st.start); d.setDate(1); while(ymd(d)<=st.end){ months.push([d.getFullYear(), d.getMonth()]); d.setMonth(d.getMonth()+1); } }
-  const render=()=>{
-    const has=new Set(rows.map(r=>r.date));
-    let h="";
-    for(const [y,m] of months){
-      const first=new Date(y,m,1), days=new Date(y,m+1,0).getDate();
-      h+=`<div class="cal"><div class="cal-h">${y}年${m+1}月</div><div class="cal-g">`+
-        WD.map((w,i)=>`<div class="cal-w ${i===0?"sun":i===6?"sat":""}">${w}</div>`).join("")+
-        `<div class="cal-blank"></div>`.repeat(first.getDay());
-      for(let d=1; d<=days; d++){
-        const ds=`${y}-${pad(m+1)}-${pad(d)}`, wd=new Date(y,m,d).getDay();
-        const out = ds<st.start || ds>st.end, isNg=ng.has(ds);
-        h+=`<button type="button" class="cal-d ${wd===0?"sun":wd===6?"sat":""} ${has.has(ds)?"on":""} ${isNg?"ngday":""}" data-day="${ds}" ${out||isNg?"disabled":""} aria-pressed="${has.has(ds)}">${d}</button>`;
-      }
-      h+=`</div></div>`;
-    }
-    const byDay={}; rows.forEach((r,i)=>(byDay[r.date] ||= []).push(i));
-    const days=Object.keys(byDay).sort();
-    h += days.length ? `<div class="sub" style="margin-bottom:0">`+days.map(d=>`
-      <div class="av-day"><div class="row"><span class="d grow">${dayLabel(d)}</span>
-        <button type="button" class="linkbtn nogrow" data-addtime="${d}">＋時間帯</button></div>
-        ${byDay[d].map(i=>`<div class="av-row">
-          <select data-i="${i}" data-k="from" aria-label="何時から">${timeOpts(rows[i].from)}</select><span class="til">〜</span>
-          <select data-i="${i}" data-k="to" aria-label="何時まで">${timeOpts(rows[i].to)}</select>
-          <button type="button" class="x" data-rm="${i}" aria-label="削除">×</button></div>`).join("")}
-      </div>`).join("")+`</div>`
-      : `<p class="muted small" style="margin:0">${forAdmin?"空いている日をタップしてください。":"空いている日をタップしてください。そのあと時間を選べます。"}</p>`;
-    root.innerHTML=h;
-    $$("[data-day]",root).forEach(b=>b.onclick=()=>{
-      const d=b.dataset.day;
-      if(rows.some(r=>r.date===d)){ for(let i=rows.length-1;i>=0;i--) if(rows[i].date===d) rows.splice(i,1); }
-      else rows.push({date:d, from:st.dayStart, to:st.dayEnd});
-      render();
+function render(){
+  const [y,m]=curMonth.split("-");
+  $("#mlabel").textContent=`${y}年${+m}月`;
+  document.title=`${+m}月｜日程あわせ`;
+  renderSettings(); renderSheet(); renderResult();
+  const prev=DB.months[shiftMonth(curMonth,-1)];
+  $("#carry").hidden = !(prev && prev.people.some(p=>p.name) && !M().people.some(p=>p.name));
+  const b=DB.backupAt; $("#bkinfo").textContent=`最後に書き出した日：${b?new Date(b).toLocaleString("ja-JP"):"まだありません"}`;
+}
+
+function renderSettings(){
+  const st=DB.settings;
+  const opt=(list,v,f)=>list.map(x=>`<option value="${x}" ${x===v?"selected":""}>${f(x)}</option>`).join("");
+  $("#settings").innerHTML=`
+    <label>1回の時間 <select data-k="duration">${opt([30,45,60,75,90,120,150,180],st.duration,durLabel)}</select></label>
+    <label>営業時間 <select data-k="dayStart">${opt(TIMES,st.dayStart,hm)}</select>〜<select data-k="dayEnd">${opt(TIMES,st.dayEnd,hm)}</select></label>
+    <label>お客さんの間に空ける時間 <select data-k="gap">${opt([0,10,15,30,45,60],st.gap,x=>x?durLabel(x):"なし")}</select></label>
+    <label>1日の上限 <select data-k="perDay">${opt([0,1,2,3,4,5,6,7,8,10,12],st.perDay,x=>x?x+"件":"なし")}</select></label>`;
+  $$("#settings select").forEach(s=>s.onchange=()=>{
+    const k=s.dataset.k, v= /^\d+$/.test(s.value) ? +s.value : s.value;
+    const next={...DB.settings,[k]:v};
+    if(toMin(next.dayEnd)-toMin(next.dayStart) < next.duration){ toast("営業時間が1回の時間より短くなります"); s.value=DB.settings[k]; return; }
+    DB.settings=next; save(); render();
+  });
+}
+
+function renderSheet(){
+  const mo=M(), st=DB.settings, dates=monthDates(), off=new Set(mo.off);
+  const asg = mo.assignment?.map || {};
+  // いつも最後に空の行を1つ置いておく（そこに名前を書くと人が増える）
+  if(!mo.people.length || mo.people.at(-1).name || Object.keys(mo.people.at(-1).cells).length) mo.people.push({id:uid(), name:"", cells:{}});
+  const people=mo.people;
+  const counts=dates.map(d=>people.filter(p=>{ const r=parseCell(p.cells[d],st); return Array.isArray(r)&&r.length; }).length);
+  const picks=dates.map(d=>people.filter(p=>asg[p.id]?.date===d).length);
+  let h=`<table class="sheet"><thead><tr><th class="namecol">お客さん ＼ 日付</th>`;
+  for(const d of dates){
+    const dt=parseD(d), w=dt.getDay();
+    h+=`<th data-off="${d}" class="${w===0?"sun":w===6?"sat":""} ${off.has(d)?"off":""}" title="クリックで${off.has(d)?"営業日に戻す":"休みにする"}">${dt.getDate()}<span class="wd">${off.has(d)?"休み":WD[w]}</span></th>`;
+  }
+  h+=`</tr></thead><tbody>`;
+  people.forEach((p,ri)=>{
+    const last = ri===people.length-1;
+    const a=asg[p.id];
+    const status = !mo.assignment || last || !p.name ? "" : a ? `<span class="st ok">決定</span>` : (p.id in asg ? `<span class="st ng">未定</span>` : "");
+    h+=`<tr data-pid="${p.id}"><td class="namecol"><div class="namebox">
+        <input class="n" data-r="${ri}" data-c="-1" value="${esc(p.name)}" placeholder="${last?"＋ 名前を入力":""}" maxlength="40" aria-label="名前">
+        ${status}${last?"":`<button class="del" data-del="${p.id}" title="この行を消す" aria-label="${esc(p.name)}の行を消す">×</button>`}</div></td>`;
+    dates.forEach((d,ci)=>{
+      const v=p.cells[d]||"", r=parseCell(v,st);
+      const cls=[ off.has(d)?"off":"", v ? (Array.isArray(r)&&r.length ? "has" : "bad") : "", a&&a.date===d ? "pick":"" ].join(" ");
+      h+=`<td class="cell ${cls}"><input class="c" data-r="${ri}" data-c="${ci}" data-d="${d}" value="${esc(v)}" ${off.has(d)?"disabled":""} aria-label="${esc(p.name||"新しい人")} ${dayLabel(d)}">${a&&a.date===d?`<span class="lbl">${hm(a.start)}〜</span>`:""}</td>`;
     });
-    $$("[data-addtime]",root).forEach(b=>b.onclick=()=>{ rows.push({date:b.dataset.addtime, from:st.dayStart, to:st.dayEnd}); render(); });
-    $$("[data-rm]",root).forEach(b=>b.onclick=()=>{ rows.splice(+b.dataset.rm,1); render(); });
-    $$("select[data-i]",root).forEach(s=>s.onchange=()=>{ rows[+s.dataset.i][s.dataset.k]=s.value; });
-  };
-  render();
-  return {render};
-}
-function validRows(rows){
-  for(const r of rows) if(r.from>=r.to) return `${dayLabel(r.date)} の時間が「〜から〜まで」の順になっていません`;
-  return null;
+    h+=`</tr>`;
+  });
+  h+=`</tbody><tfoot><tr><td class="namecol">${mo.assignment?"決定 ／ 空いてる人":"空いてる人"}</td>${dates.map((d,i)=>`<td>${mo.assignment&&picks[i]?`<b style="color:var(--pick-ink)">${picks[i]}</b> / `:""}${counts[i]||""}</td>`).join("")}</tr></tfoot></table>`;
+  const wrap=$("#sheetWrap"), sx=wrap.scrollLeft, sy=wrap.scrollTop;
+  const focused=document.activeElement?.closest?.("#sheetWrap") ? [document.activeElement.dataset.r, document.activeElement.dataset.c] : null;
+  wrap.innerHTML=h; wrap.scrollLeft=sx; wrap.scrollTop=sy;
+  if(focused) $(`#sheetWrap input[data-r="${focused[0]}"][data-c="${focused[1]}"]`)?.focus();
+  bindSheet();
 }
 
-
-/* ======================================================
-   データの保存（この端末のブラウザの中だけ）
-   ====================================================== */
-const KEY="nichitei:v1";
-let storageOK=true;
-function loadDB(){
-  try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d && d.events) return d; }catch{}
-  return {events:{}, backupAt:null, changedAt:null};
+function bindSheet(){
+  const mo=M(), st=DB.settings, wrap=$("#sheetWrap");
+  $$("th[data-off]",wrap).forEach(th=>th.onclick=()=>{
+    const d=th.dataset.off, i=mo.off.indexOf(d);
+    if(i>=0) mo.off.splice(i,1); else mo.off.push(d);
+    save(); render();
+  });
+  $$("[data-del]",wrap).forEach(b=>b.onclick=()=>{
+    const p=mo.people.find(x=>x.id===b.dataset.del);
+    if((p.name || Object.keys(p.cells).length) && !confirm(`${p.name||"この行"}を消しますか？`)) return;
+    mo.people=mo.people.filter(x=>x!==p); if(mo.assignment) delete mo.assignment.map[p.id];
+    save(); render();
+  });
+  const cellOf=el=>{ const p=mo.people[+el.dataset.r]; return p; };
+  $$("input",wrap).forEach(inp=>{
+    inp.onfocus=()=>inp.select();
+    inp.oninput=()=>{
+      const p=cellOf(inp);
+      if(inp.classList.contains("n")) p.name=inp.value.trim();
+      else { const v=inp.value.trim(); if(v) p.cells[inp.dataset.d]=v; else delete p.cells[inp.dataset.d];
+        const td=inp.parentElement, r=parseCell(v,st);
+        td.classList.toggle("has", !!v && Array.isArray(r) && r.length>0); td.classList.toggle("bad", !!v && !(Array.isArray(r)&&r.length)); showTip(inp); }
+      save(); dirty=true;
+    };
+    inp.onblur=()=>{ hideTip(); if(dirty){ dirty=false; setTimeout(()=>{ if(!document.activeElement?.closest?.("#sheetWrap") || needsRow()) render(); else { renderResult(); refreshFoot(); } },0); } };
+    inp.onkeydown=e=>{
+      const r=+inp.dataset.r, c=+inp.dataset.c, atStart=inp.selectionStart===0&&inp.selectionEnd===0, atEnd=inp.selectionStart===inp.value.length;
+      let to=null;
+      if(e.key==="Enter"||(e.key==="ArrowDown")) to=[e.shiftKey&&e.key==="Enter"?r-1:r+1,c];
+      else if(e.key==="ArrowUp") to=[r-1,c];
+      else if(e.key==="ArrowLeft" && (atStart||inp.selectionStart===0&&inp.selectionEnd===inp.value.length)) to=[r,c-1];
+      else if(e.key==="ArrowRight" && (atEnd||inp.selectionStart===0&&inp.selectionEnd===inp.value.length)) to=[r,c+1];
+      else if((e.key==="Delete"||e.key==="Backspace") && inp.selectionStart===0 && inp.selectionEnd===inp.value.length && inp.value){ inp.value=""; inp.oninput(); e.preventDefault(); return; }
+      if(!to) return;
+      e.preventDefault();
+      if(needsRow() && to[0]>=mo.people.length-1 && dirty){ dirty=false; render(); }
+      let t=null, [rr,cc]=to;
+      while(!t && cc>=-1 && cc<monthDates().length){ t=$(`#sheetWrap input[data-r="${rr}"][data-c="${cc}"]:not([disabled])`); if(!t) cc += (cc<c?-1:1); if(rr!==r) break; }
+      t?.focus();
+    };
+    if(inp.classList.contains("c")){ inp.onmouseenter=()=>inp.value&&showTip(inp); inp.onmouseleave=()=>document.activeElement!==inp&&hideTip(); }
+  });
 }
-function saveDB(d){
-  d.changedAt=new Date().toISOString();
-  try{ localStorage.setItem(KEY, JSON.stringify(d)); storageOK=true; }
-  catch{ storageOK=false; toast("保存できませんでした。プライベートブラウズを切ってお試しください"); }
+let dirty=false;
+const needsRow = () => { const l=M().people.at(-1); return l && (l.name || Object.keys(l.cells).length); };
+function refreshFoot(){ /* 足元の人数だけ更新するより、全部描き直したほうが確実 */ renderSheet(); }
+function showTip(inp){
+  const tip=$("#tip");
+  if(!inp.value.trim()){ tip.hidden=true; return; }
+  tip.textContent=cellTip(inp.value, DB.settings);
+  const r=inp.getBoundingClientRect(); tip.hidden=false;
+  tip.style.left=Math.max(4,Math.min(innerWidth-tip.offsetWidth-4, r.left+r.width/2-tip.offsetWidth/2))+"px"; tip.style.top=(r.top-28)+"px";
 }
-const listEvents = () => Object.values(loadDB().events).sort((a,b)=>b.created.localeCompare(a.created));
-const getEvent = id => loadDB().events[id] || null;
-function putEvent(ev){ const d=loadDB(); d.events[ev.id]=ev; saveDB(d); }
-function removeEvent(id){ const d=loadDB(); delete d.events[id]; saveDB(d); }
-try{ navigator.storage?.persist?.(); }catch{}
+function hideTip(){ $("#tip").hidden=true; }
 
-function exportBackup(){
-  const d=loadDB();
-  d.backupAt=new Date().toISOString();
-  try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch{}
-  const blob=new Blob([JSON.stringify({app:"nichitei", version:1, exportedAt:d.backupAt, events:d.events}, null, 1)], {type:"application/json"});
-  const a=document.createElement("a");
-  const t=new Date();
+function renderResult(){
+  const mo=M(), st=DB.settings, A=mo.assignment, el=$("#result");
+  const named=mo.people.filter(p=>p.name);
+  $("#run").textContent = A ? "もう一度自動で割り振る" : "自動で割り振る";
+  $("#run").disabled = !named.length;
+  ["#rerun","#clear","#copyAll"].forEach(s=>$(s).hidden=!A);
+  if(!A){ el.innerHTML=""; return; }
+  const off=new Set(mo.off), gap=st.gap||0, map=A.map;
+  const assigned=named.filter(p=>map[p.id]), un=named.filter(p=>!map[p.id]);
+  const stale = A.sig!==signature();
+  const slots=assigned.map(p=>({id:p.id, date:map[p.id].date, s:toMin(map[p.id].start), e:toMin(map[p.id].end)}));
+  const warn={};
+  for(const a of slots){
+    if(!candidatesOf(mo.people.find(p=>p.id===a.id),st,off).some(c=>c.date===a.date&&c.s===a.s)) warn[a.id]="空き時間の外";
+    if(slots.some(b=>b!==a && clash(a,b,gap))) warn[a.id]="時間が重なっています";
+  }
+  const days=[...new Set(assigned.map(p=>map[p.id].date))].sort();
+  const sel=p=>{ const cur=map[p.id]; const cs=candidatesOf(p,st,off);
+    return `<select data-move="${p.id}" title="手で動かす"><option value="">（未定にする）</option>
+      ${cur && !cs.some(c=>c.date===cur.date&&fromMin(c.s)===cur.start)?`<option selected>${esc(slotLabel(cur))}</option>`:""}
+      ${cs.map(c=>{ const busy=slots.some(b=>b.id!==p.id&&clash(c,b,gap)); return `<option value="${c.date}|${fromMin(c.s)}|${fromMin(c.e)}" ${cur&&cur.date===c.date&&cur.start===fromMin(c.s)?"selected":""}>${esc(slotLabel({date:c.date,start:fromMin(c.s),end:fromMin(c.e)}))}${busy?" ※重なる":""}</option>`; }).join("")}</select>`; };
+  el.innerHTML=`<div class="card">
+    <h2>割り振り結果</h2>
+    ${stale?`<div class="notice warn">割り振りのあとで表や設定が変わりました。「もう一度自動で割り振る」を押すと組み直します。</div>`:""}
+    <div class="notice ${un.length?"warn":"ok"}">${un.length?`${named.length}人中 ${assigned.length}人が決まりました。<b>入らなかった人：${un.map(p=>esc(p.name)).join("、")}</b>（空いている日を増やしてもらうか、右の選択で手で動かしてください）`:`全員（${named.length}人）の日程が決まりました`}</div>
+    <div class="results">
+      ${days.map(d=>`<div class="res-day"><div class="d">${dayLabel(d)}</div>
+        ${assigned.filter(p=>map[p.id].date===d).sort((a,b)=>map[a.id].start.localeCompare(map[b.id].start)).map(p=>`
+          <div class="res-item"><span class="t">${hm(map[p.id].start)}–${hm(map[p.id].end)}</span><span class="who">${esc(p.name)}${warn[p.id]?`<span class="tag ng">${warn[p.id]}</span>`:""}</span>
+          <button class="btn sm" data-msg="${p.id}" title="LINEに貼る文をコピー">連絡文</button></div>`).join("")}
+      </div>`).join("")}
+    </div>
+    <details style="margin-top:12px"><summary>手で動かす</summary>
+      <div class="results" style="margin-top:8px">${named.map(p=>`<div class="res-item"><span class="who">${esc(p.name)}</span>${sel(p)}</div>`).join("")}</div>
+    </details>
+  </div>`;
+  $$("[data-msg]",el).forEach(b=>b.onclick=()=>{
+    const p=named.find(x=>x.id===b.dataset.msg);
+    copyText(`${p.name}様\n次回のセッションは\n${slotLabel(map[p.id])}\nでお願いいたします。`, `${p.name}さんへの連絡文をコピーしました`);
+  });
+  $$("[data-move]",el).forEach(s=>s.onchange=()=>{
+    const [date,start,end]=s.value.split("|");
+    map[s.dataset.move] = s.value ? {date,start,end} : null;
+    save(); render(); $("#result details")?.setAttribute("open","");
+  });
+}
+
+/* ---------- ボタン ---------- */
+function run(seed){
+  const mo=M(), named=mo.people.filter(p=>p.name);
+  const noName=mo.people.filter(p=>!p.name && Object.keys(p.cells).length);
+  if(noName.length) toast("名前が空の行は割り振りに入りません");
+  const bad=named.filter(p=>Object.values(p.cells).some(v=>!Array.isArray(parseCell(v,DB.settings))));
+  if(bad.length && !confirm(`読み取れないマスがあります（${bad.map(p=>p.name).join("、")}）。赤いマスは「空いていない」として扱います。このまま割り振りますか？`)) return;
+  mo.assignment={sig:signature(), map:allocate(named, DB.settings, new Set(mo.off), seed)};
+  save(); render();
+  $("#result").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+$("#run").onclick=()=>{ if(M().assignment && !confirm("いまの結果（手で動かした分も含む）を消して、組み直しますか？")) return; run(12345); toast("割り振りました"); };
+$("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、別の組み合わせにしますか？")) return; run((Math.random()*1e9)|0); toast("別の組み合わせにしました"); };
+$("#clear").onclick=()=>{ if(!confirm("割り振り結果を消しますか？（表の入力は残ります）")) return; M().assignment=null; save(); render(); };
+$("#copyAll").onclick=()=>{
+  const mo=M(), map=mo.assignment.map, named=mo.people.filter(p=>p.name);
+  const [y,m]=curMonth.split("-");
+  const lines=[`【${+m}月の予定】`];
+  named.filter(p=>map[p.id]).sort((a,b)=>(map[a.id].date+map[a.id].start).localeCompare(map[b.id].date+map[b.id].start))
+    .forEach(p=>lines.push(`${slotLabel(map[p.id])}　${p.name}様`));
+  const un=named.filter(p=>!map[p.id]); if(un.length) lines.push(`未定：${un.map(p=>p.name+"様").join("、")}`);
+  copyText(lines.join("\n"),"結果をコピーしました");
+};
+$("#carry").onclick=()=>{
+  const prev=DB.months[shiftMonth(curMonth,-1)];
+  M().people=prev.people.filter(p=>p.name).map(p=>({id:uid(), name:p.name, cells:{}}));
+  save(); render(); toast("前の月の名前を入れました");
+};
+$("#prev").onclick=()=>{ curMonth=shiftMonth(curMonth,-1); render(); };
+$("#next").onclick=()=>{ curMonth=shiftMonth(curMonth,1); render(); };
+$("#wipe").onclick=()=>{ if(!confirm("この月の表（名前・入力・結果）を全部消します。よろしいですか？")) return; delete DB.months[curMonth]; save(); render(); };
+
+/* ---------- バックアップ ---------- */
+$("#exp").onclick=()=>{
+  DB.backupAt=new Date().toISOString(); save();
+  const blob=new Blob([JSON.stringify({app:"nichitei", version:2, data:DB}, null, 1)], {type:"application/json"});
+  const a=document.createElement("a"), t=new Date();
   a.download=`nichitei-backup-${t.getFullYear()}${pad(t.getMonth()+1)}${pad(t.getDate())}.json`;
-  a.href=URL.createObjectURL(blob);
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
-  toast("バックアップを書き出しました");
-}
-function importBackup(file){
+  a.href=URL.createObjectURL(blob); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+  render(); toast("書き出しました");
+};
+$("#imp").onchange=ev=>{
+  const f=ev.target.files[0]; ev.target.value=""; if(!f) return;
   const fr=new FileReader();
   fr.onload=()=>{
     let j; try{ j=JSON.parse(fr.result); }catch{ return toast("このファイルは読み込めません"); }
-    if(!j || j.app!=="nichitei" || !j.events) return toast("日程あわせのバックアップではありません");
-    const n=Object.keys(j.events).length;
-    if(!confirm(`バックアップから${n}件の予定を読み込みます。同じ予定がある場合は上書きされます。よろしいですか？`)) return;
-    const d=loadDB(); Object.assign(d.events, j.events); saveDB(d);
-    toast(`${n}件の予定を読み込みました`); route();
+    if(!j || j.app!=="nichitei" || !j.data?.months) return toast("日程あわせのバックアップではありません");
+    if(!confirm("バックアップを読み込みます。いまの内容は置きかわります。よろしいですか？")) return;
+    DB=j.data; save(); render(); toast("読み込みました");
   };
-  fr.readAsText(file);
-}
+  fr.readAsText(f);
+};
 
-/* ---------- 画面の切り替え ---------- */
-const params = () => new URLSearchParams(location.hash.slice(1));
-function go(hash){ if(location.hash!==hash) location.hash=hash; else route(); }
-addEventListener("hashchange", route);
-$("#homeLink").onclick=ev=>{ ev.preventDefault(); go("#"); };
-function route(){
-  scrollTo(0,0);
-  const id=params().get("e");
-  if(id) return viewEvent(id);
-  return viewHome();
-}
-
-/* ---------- 設定フォーム（作成時と変更時で共通） ---------- */
-const DURS=[30,45,60,90,120,150,180,240];
-const GAPS=[0,10,15,30,45,60];
-function settingsFields(st){
-  return `
-    <label class="f">対象の期間</label>
-    <div class="row field"><input type="date" id="s_start" value="${st.start}" aria-label="期間のはじめ"><span class="nogrow muted">〜</span><input type="date" id="s_end" value="${st.end}" aria-label="期間のおわり"></div>
-    <div class="row field" style="align-items:flex-start">
-      <div><label class="f" for="s_dur">1回の時間</label><select id="s_dur">${DURS.map(m=>`<option value="${m}" ${m===st.duration?"selected":""}>${durLabel(m)}</option>`).join("")}</select></div>
-      <div><label class="f" for="s_gap">間にあける時間</label><select id="s_gap">${GAPS.map(m=>`<option value="${m}" ${m===st.gap?"selected":""}>${m?durLabel(m):"なし"}</option>`).join("")}</select></div>
-    </div>
-    <label class="f">営業時間（セッションを入れられる時間）</label>
-    <div class="row field"><select id="s_ds" aria-label="何時から">${timeOpts(st.dayStart)}</select><span class="nogrow muted">〜</span><select id="s_de" aria-label="何時まで">${timeOpts(st.dayEnd)}</select></div>
-    <div class="field"><label class="f" for="s_pd">1日に入れる最大件数</label>
-      <select id="s_pd">${[0,1,2,3,4,5,6,7,8,10].map(n=>`<option value="${n}" ${n===(st.perDay||0)?"selected":""}>${n?n+"件まで":"制限なし"}</option>`).join("")}</select></div>`;
-}
-function readSettings(old={}){
-  const st={...old, start:$("#s_start").value, end:$("#s_end").value, duration:+$("#s_dur").value, gap:+$("#s_gap").value,
-    dayStart:$("#s_ds").value, dayEnd:$("#s_de").value, perDay:+$("#s_pd").value, ng:old.ng||[]};
-  if(!st.start || !st.end) return [null,"期間を入れてください"];
-  if(st.start>st.end) return [null,"期間のはじめとおわりが逆です"];
-  if(datesBetween(st.start,st.end).length>93) return [null,"期間は3か月以内にしてください"];
-  if(toMin(st.dayEnd)-toMin(st.dayStart) < st.duration) return [null,"営業時間が1回の時間より短いです"];
-  st.ng=st.ng.filter(d=>d>=st.start&&d<=st.end);
-  return [st,null];
-}
-function settingsSummary(st){
-  return `${dayLabel(st.start)}〜${dayLabel(st.end)} ・ 1回 ${durLabel(st.duration)}${st.gap?` ・ 間 ${durLabel(st.gap)}`:""} ・ ${hm(st.dayStart)}–${hm(st.dayEnd)}${st.perDay?` ・ 1日${st.perDay}件まで`:""}${st.ng?.length?` ・ 休み${st.ng.length}日`:""}`;
-}
-
-/* ======================================================
-   ホーム
-   ====================================================== */
-function viewHome(){
-  document.title="日程あわせ";
-  const n=new Date(); const first=new Date(n.getFullYear(), n.getMonth()+1, 1), last=new Date(n.getFullYear(), n.getMonth()+2, 0);
-  const st={start:ymd(first), end:ymd(last), duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0, ng:[]};
-  const list=listEvents(), db=loadDB();
-  const needBackup = list.length && (!db.backupAt || (db.changedAt>db.backupAt && Date.now()-new Date(db.backupAt)>7*864e5));
-  app.innerHTML = `
-    ${list.length ? `<div class="card"><h2>予定</h2><ul class="list">${list.map(x=>`
-      <li><a class="grow" href="#e=${esc(x.id)}" style="color:inherit;text-decoration:none"><b>${esc(x.title)}</b>
-        <div class="muted small">${x.responses.length}人${x.assignment?" ・ 割り振り済み":""}</div></a>
-      <span class="muted small">開く ›</span></li>`).join("")}</ul></div>` : `
-    <div class="card">
-      <h1>空いている日を集めて、重ならないように割り振る</h1>
-      <ol class="steps">
-        <li>期間と1回の時間を決めて予定を作る</li>
-        <li>お客さんから聞いた空き日時を入力する（LINEの文面を貼れば日時を読み取ります）</li>
-        <li>「日程を割り振る」を押すと、全員の空き時間を見て重ならないように一括で決めます。入力した順番は関係ないので先着順にはなりません</li>
-      </ol>
-    </div>`}
-    ${needBackup?`<div class="notice warn">しばらくバックアップをとっていません。下の「バックアップ」から書き出しておくと安心です。</div>`:""}
-    <form class="card" id="create" autocomplete="off">
-      <h2>新しい予定を作る</h2>
-      <div class="field"><label class="f" for="title">タイトル</label>
-        <input type="text" id="title" maxlength="100" value="${first.getMonth()+1}月のセッション" required></div>
-      ${settingsFields(st)}
-      <button class="btn pri big">作る</button>
-    </form>
-    <details class="card"><summary>バックアップ</summary>
-      <p class="muted small" style="margin-top:8px">データはこの端末のこのブラウザの中にだけ保存されています（インターネット上には送りません）。機種変更やブラウザのデータ削除に備えて、ときどきファイルに書き出してください。</p>
-      <p class="muted small">最後のバックアップ：${db.backupAt?fmtDT(db.backupAt):"まだありません"}</p>
-      <button class="btn pri wide" id="exp" ${list.length?"":"disabled"}>ファイルに書き出す</button>
-      <label class="btn wide" style="margin-top:8px">ファイルから読み込む<input type="file" id="imp" accept=".json,application/json" hidden></label>
-    </details>`;
-  $("#create").onsubmit=ev=>{
-    ev.preventDefault();
-    const title=$("#title").value.trim();
-    if(!title) return toast("タイトルを入れてください");
-    const [s,err]=readSettings(st); if(err) return toast(err);
-    const e={id:uuid().slice(0,8), title, settings:s, responses:[], assignment:null, created:new Date().toISOString()};
-    putEvent(e);
-    go("#e="+e.id);
-  };
-  $("#exp").onclick=exportBackup;
-  $("#imp").onchange=ev=>{ const f=ev.target.files[0]; if(f) importBackup(f); ev.target.value=""; };
-}
-
-/* ======================================================
-   予定の画面
-   ====================================================== */
-const A={ev:null, work:null, editing:null};   // work: 画面上で編集中の割り当て / editing: 入力中のお客さんid
-
-function viewEvent(id){
-  const ev=getEvent(id);
-  if(!ev){ app.innerHTML=`<div class="card empty">この予定は見つかりませんでした。<br><a href="#">最初の画面へ</a></div>`; return; }
-  if(A.ev?.id!==id) A.editing=null;
-  A.ev=ev; A.work = ev.assignment ? {...ev.assignment} : null;
-  renderEvent();
-}
-function commit(msg){ putEvent(A.ev); if(msg) toast(msg); A.work = A.ev.assignment ? {...A.ev.assignment} : null; renderEvent(); }
-
-function renderEvent(){
-  if(A.editing) return renderEditCustomer();
-  const {ev}=A, st=ev.settings, R=[...ev.responses].sort((a,b)=>a.name.localeCompare(b.name,"ja"));
-  document.title=`${ev.title}｜日程あわせ`;
-  let h = `
-    <div class="card">
-      ${ev.assignment?`<div style="margin-bottom:6px"><span class="pill done">割り振り済み</span></div>`:""}
-      <h1>${esc(ev.title)}</h1>
-      <p class="muted small" style="margin:0">${settingsSummary(st)}</p>
-    </div>`;
-
-  const cands = Object.fromEntries(R.map(r=>[r.id, candidatesOf(r,st).length]));
-  h += `<div class="card">
-    <h2>お客さん（${R.length}人）</h2>
-    ${R.length ? `<ul class="list">${R.map(r=>`<li style="align-items:flex-start">
-        <div class="grow">
-          <b>${esc(r.name)}</b>${cands[r.id]?"":`<span class="tag ng">入る時間なし</span>`}
-          <div class="small" style="color:var(--ink2)">${esc(availSummary(r.avail))}</div>
-          ${r.comment?`<div class="muted small">メモ：${esc(r.comment)}</div>`:""}
-        </div>
-        <button class="btn sm nogrow" data-edit="${esc(r.id)}">編集</button></li>`).join("")}</ul>`
-      : `<p class="muted small">まだいません。お客さんから聞いた空き日時を入力してください。</p>`}
-    <button class="btn pri wide" id="addCust" style="margin-top:10px">＋ お客さんの空き日時を入力</button>
-  </div>`;
-
-  if(!ev.assignment){
-    h += `<div class="card"><h2>割り振り</h2>
-      <p class="muted small">全員の空き時間を見て、重ならないように一括で決めます。入力した順番は関係ありません。あとから人を追加したら、もう一度押せば組み直せます。</p>
-      <button class="btn pri big" id="run" ${R.length?"":"disabled"}>日程を割り振る</button></div>`;
-  } else h += resultHtml(R);
-
-  h += `<details class="card"><summary>設定を変える・削除</summary>
-      <div class="field" style="margin-top:12px"><label class="f" for="e_title">タイトル</label><input type="text" id="e_title" maxlength="100" value="${esc(ev.title)}"></div>
-      ${settingsFields(st)}
-      <label class="f">休みの日（タップで切り替え）</label>
-      <div id="ngcal"></div>
-      <button class="btn pri wide" id="saveSt">設定を保存</button>
-      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-      <button class="btn wide" id="dup" style="margin-bottom:8px">この設定で別の予定を作る</button>
-      <button class="btn danger wide" id="delete">この予定を削除</button>
-    </details>`;
-
-  app.innerHTML=h;
-  bindEvent(R);
-}
-
-function resultHtml(R){
-  const {ev,work}=A, st=ev.settings, byId=new Map(R.map(r=>[r.id,r]));
-  const assigned=R.filter(r=>work[r.id]), un=R.filter(r=>!work[r.id]);
-  const fresh=R.filter(r=>!(r.id in ev.assignment));
-  const gap=st.gap||0;
-  // おかしな所のチェック（手で動かしたとき・あとから空き日時を直したとき）
-  const warn={};
-  const slots=assigned.map(r=>({id:r.id, date:work[r.id].date, s:toMin(work[r.id].start), e:toMin(work[r.id].end)}));
-  for(const a of slots){
-    const c=candidatesOf(byId.get(a.id),st);
-    if(!c.some(x=>x.date===a.date&&x.s===a.s)) warn[a.id]="空き時間外";
-    if(slots.some(b=>b!==a && clash(a,b,gap))) warn[a.id]="時間が重なっています";
-  }
-  if(st.perDay){ const cnt={}; slots.forEach(a=>cnt[a.date]=(cnt[a.date]||0)+1); slots.forEach(a=>{ if(cnt[a.date]>st.perDay) warn[a.id]||="1日の件数オーバー"; }); }
-  const dirty=JSON.stringify(work)!==JSON.stringify(ev.assignment);
-  const days=[...new Set(assigned.map(r=>work[r.id].date))].sort();
-
-  return `<div class="card">
-    <h2>割り振り結果</h2>
-    <div class="notice ${un.length?"warn":"ok"}">${un.length?`${R.length}人中 ${assigned.length}人が決まりました。<b>入らなかった人 ${un.length}人</b>`:`全員（${R.length}人）の日程が決まりました`}</div>
-    ${fresh.length?`<div class="notice warn">割り振りのあとに追加した人がいます（${fresh.map(r=>esc(r.name)).join("、")}）。「もう一度割り振る」を押してください。</div>`:""}
-    ${days.map(d=>`<div class="res-day"><div class="d">${dayLabel(d)}</div>
-      ${assigned.filter(r=>work[r.id].date===d).sort((a,b)=>work[a.id].start.localeCompare(work[b.id].start)).map(r=>`
-        <div class="res-item"><span class="t">${hm(work[r.id].start)}–${hm(work[r.id].end)}</span><span class="who">${esc(r.name)}${warn[r.id]?`<span class="tag ng">${warn[r.id]}</span>`:""}</span>
-        <button class="btn sm nogrow" data-msg="${esc(r.id)}">連絡文</button></div>`).join("")}
-    </div>`).join("")}
-    ${un.length?`<div class="res-day"><div class="d" style="color:var(--ng)">入らなかった人</div>
-      ${un.map(r=>`<div class="res-item"><span class="who">${esc(r.name)}${candidatesOf(r,st).length?"":`<span class="tag ng">入る時間なし</span>`}</span></div>`).join("")}
-      <p class="muted small" style="margin:6px 0 0">空き日時を増やしてもらうか、下の「手で動かす」で調整してください。</p></div>`:""}
-
-    <details style="margin-top:10px" id="manual"><summary>手で動かす</summary>
-      <ul class="list" style="margin-top:6px">${R.map(r=>{ const cur=work[r.id]; const cs=candidatesOf(r,st);
-        return `<li><span class="grow"><b>${esc(r.name)}</b></span>
-        <select class="nogrow" data-person="${esc(r.id)}" style="width:auto;max-width:65%">
-          <option value="">（未定）</option>
-          ${cur && !cs.some(c=>c.date===cur.date&&fromMin(c.s)===cur.start) ? `<option selected>${esc(slotLabel(cur))}</option>`:""}
-          ${cs.map(c=>{ const v=`${c.date}|${fromMin(c.s)}|${fromMin(c.e)}`; const busy=slots.some(b=>b.id!==r.id && clash(c,b,gap));
-            return `<option value="${v}" ${cur&&cur.date===c.date&&cur.start===fromMin(c.s)?"selected":""}>${esc(slotLabel({date:c.date,start:fromMin(c.s),end:fromMin(c.e)}))}${busy?" ※重なる":""}</option>`; }).join("")}
-        </select></li>`; }).join("")}</ul>
-    </details>
-    ${dirty?`<button class="btn pri big" id="saveWork" style="margin-top:12px">変更を保存</button>`:""}
-    <div class="row" style="margin-top:12px">
-      <button class="btn" id="rerun">もう一度割り振る</button>
-      <button class="btn" id="copyAll">一覧をコピー</button>
-    </div>
-    <button class="btn ghost wide" id="reopen" style="margin-top:8px">割り振りを取り消す</button>
-  </div>`;
-}
-
-function bindEvent(R){
-  const {ev}=A, st=ev.settings;
-  $$("[data-edit]").forEach(b=>b.onclick=()=>{ A.editing=b.dataset.edit; renderEvent(); scrollTo(0,0); });
-  $("#addCust").onclick=()=>{ A.editing="new"; renderEvent(); scrollTo(0,0); };
-  $("#delete").onclick=()=>{
-    if(!confirm(`「${ev.title}」を削除します。入力した内容もすべて消えます。よろしいですか？`)) return;
-    removeEvent(ev.id); A.ev=null; toast("削除しました"); go("#");
-  };
-  $("#dup").onclick=()=>{
-    const e={id:uuid().slice(0,8), title:ev.title+"（コピー）", settings:{...st, ng:[]}, responses:[], assignment:null, created:new Date().toISOString()};
-    putEvent(e); toast("新しい予定を作りました。期間を確認してください"); go("#e="+e.id);
-  };
-  // 休みの日
-  const ng=[...(st.ng||[])];
-  const drawNg=()=>{
-    const rows=ng.map(d=>({date:d}));
-    const root=$("#ngcal");
-    availEditor(root, {...st, ng:[]}, rows);
-    $$(".sub, p.muted", root).forEach(e=>e.remove());   // 時間の行は使わない
-    $$("[data-day]",root).forEach(b=>b.onclick=()=>{ const d=b.dataset.day, i=ng.indexOf(d); i>=0?ng.splice(i,1):ng.push(d); drawNg(); });
-  };
-  drawNg();
-  $("#saveSt").onclick=()=>{
-    const [s,err]=readSettings({...st, ng}); if(err) return toast(err);
-    const title=$("#e_title").value.trim(); if(!title) return toast("タイトルを入れてください");
-    const changed = JSON.stringify(s)!==JSON.stringify(st);
-    ev.title=title; ev.settings=s;
-    commit(ev.assignment && changed ? "保存しました。必要なら「もう一度割り振る」を押してください" : "保存しました");
-  };
-
-  const runAlloc=shuffle=>{ ev.assignment=allocate(ev.responses, st, shuffle); commit(shuffle?"別の組み合わせで割り振りました":"割り振りました"); };
-  if($("#run")) $("#run").onclick=()=>runAlloc(false);
-  if(!ev.assignment) return;
-  $("#rerun").onclick=()=>{ if(!confirm("いまの結果（手で動かした分も含む）を消して、もう一度割り振りますか？")) return; runAlloc(true); };
-  $$("[data-person]").forEach(sel=>sel.onchange=()=>{
-    const [date,start,end]=sel.value.split("|");
-    A.work={...A.work, [sel.dataset.person]: sel.value ? {date,start,end} : null};
-    const keep=A.work; renderEvent(); A.work=keep; $("#manual")?.setAttribute("open","");
-  });
-  if($("#saveWork")) $("#saveWork").onclick=()=>{ ev.assignment={...A.work}; commit("保存しました"); };
-  $("#reopen").onclick=()=>{ if(!confirm("割り振り結果を取り消しますか？")) return; ev.assignment=null; commit("取り消しました"); };
-  const w=A.work;
-  $$("[data-msg]").forEach(b=>b.onclick=()=>{
-    const r=R.find(x=>x.id===b.dataset.msg), a=w[r.id];
-    shareText(`${r.name}様\n次回のセッションは\n${slotLabel(a)}\nでお願いいたします。`, `${r.name}さんへの連絡文をコピーしました`);
-  });
-  $("#copyAll").onclick=()=>{
-    const lines=[`【${ev.title}】`];
-    const as=R.filter(r=>w[r.id]).sort((a,b)=>(w[a.id].date+w[a.id].start).localeCompare(w[b.id].date+w[b.id].start));
-    for(const r of as) lines.push(`${slotLabel(w[r.id])}　${r.name}様`);
-    const un=R.filter(r=>!w[r.id]); if(un.length) lines.push(`未定：${un.map(r=>r.name+"様").join("、")}`);
-    copyText(lines.join("\n"),"一覧をコピーしました");
-  };
-}
-// スマホなら共有メニュー（LINE を選べる）、それ以外はコピー
-function shareText(text,msg){
-  if(navigator.share && matchMedia("(pointer:coarse)").matches) navigator.share({text}).catch(()=>{});
-  else copyText(text,msg);
-}
-
-/* ---------- お客さんの空き日時を入力する画面 ---------- */
-function renderEditCustomer(){
-  const {ev}=A, st=ev.settings;
-  const r = A.editing==="new" ? null : ev.responses.find(x=>x.id===A.editing);
-  if(A.editing!=="new" && !r){ A.editing=null; return renderEvent(); }
-  const rows = r ? r.avail.map(a=>({...a})) : [];
-  app.innerHTML = `<form class="card" id="cust" autocomplete="off">
-      <h2>${r?"お客さんの空き日時を直す":"お客さんの空き日時を入力"}</h2>
-      ${ev.assignment?`<div class="notice warn">割り振り済みです。保存したあと、必要なら「もう一度割り振る」を押してください。</div>`:""}
-      <div class="field"><label class="f" for="cname">お名前</label>
-        <input type="text" id="cname" maxlength="50" value="${esc(r?.name||"")}" placeholder="例：山田さん" required></div>
-      <details class="sub" ${r?"":"open"}><summary>LINEの文面を貼って読み取る</summary>
-        <textarea id="paste" placeholder="例）&#10;3日 10時〜15時&#10;5日、8日は終日OK&#10;12/10 午後&#10;14日 13:00以降" style="margin-top:8px"></textarea>
-        <button type="button" class="btn wide" id="parse" style="margin-top:8px">読み取ってカレンダーに入れる</button>
-        <p class="muted small" style="margin:6px 0 0">「◯日」「◯時〜◯時」「午前・午後」「◯時以降」などの書き方を拾います。読み取れなかった分は下のカレンダーで直してください。日付だけのときは営業時間（${hm(st.dayStart)}–${hm(st.dayEnd)}）で入ります。</p>
-      </details>
-      <label class="f">空いている日時</label>
-      <div id="ed" class="field"></div>
-      <div class="field"><label class="f" for="ccomment">メモ（任意）</label>
-        <input type="text" id="ccomment" maxlength="500" value="${esc(r?.comment||"")}"></div>
-      <button class="btn pri big" id="csave">保存</button>
-      <div class="row" style="margin-top:8px">
-        <button type="button" class="btn ghost" id="cback">戻る</button>
-        ${r?`<button type="button" class="btn ghost danger" id="cdel">このお客さんを削除</button>`:""}
-      </div>
-    </form>`;
-  const ed=availEditor($("#ed"), st, rows, {forAdmin:true});
-  $("#parse").onclick=()=>{
-    const {avail, skipped}=parseText($("#paste").value, st);
-    let added=0;
-    for(const a of avail){ if(!rows.some(x=>x.date===a.date&&x.from===a.from&&x.to===a.to)){ rows.push(a); added++; } }
-    ed.render();
-    toast(added ? `${added}件読み取りました${skipped.length?`（期間外の${skipped.length}件は除外）`:""}` : "日時を読み取れませんでした。カレンダーから入力してください");
-  };
-  $("#cback").onclick=()=>{ A.editing=null; renderEvent(); };
-  if($("#cdel")) $("#cdel").onclick=()=>{
-    if(!confirm(`${r.name}さんを削除しますか？`)) return;
-    ev.responses=ev.responses.filter(x=>x.id!==r.id);
-    if(ev.assignment) delete ev.assignment[r.id];
-    A.editing=null; commit("削除しました");
-  };
-  $("#cust").onsubmit=e=>{
-    e.preventDefault();
-    const name=$("#cname").value.trim();
-    if(!name) return toast("お名前を入れてください");
-    if(!rows.length) return toast("空いている日を1つ以上選んでください");
-    const bad=validRows(rows); if(bad) return toast(bad);
-    const data={name, avail:rows, comment:$("#ccomment").value.trim()};
-    if(r) Object.assign(r, data); else ev.responses.push({id:uuid(), ...data});
-    A.editing=null; commit(r?"保存しました":`${name}さんを追加しました`);
-  };
-}
-
-route();
+try{ navigator.storage?.persist?.(); }catch{}
+render();
 </script>
 </body>
 </html>
