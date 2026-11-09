@@ -86,6 +86,20 @@ table.sheet{border-collapse:separate;border-spacing:0;font-size:13px}
 .namebox .del{border:0;background:none;color:var(--ink3);cursor:pointer;font-size:16px;width:26px;height:100%;opacity:0}
 tr:hover .namebox .del,.namebox .del:focus{opacity:1}
 .namebox .del:hover{color:var(--ng)}
+/* 週の区切り */
+.sheet thead tr.wkrow th{height:26px;font-size:12px;cursor:default;background:var(--card2)}
+.sheet thead tr.wkrow th.wk{color:var(--acc2)}
+.sheet thead tr.dayrow th{top:26px}
+.sheet thead tr.wkrow th.namecol{height:74px}
+.sheet .wk-start{border-left:2px solid var(--ink3)}
+/* 結果（人ごと） */
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.person{border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.person .ph{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.person .ps{font-size:14px;font-variant-numeric:tabular-nums}
+table.mv{border-collapse:collapse;font-size:13px}
+table.mv th,table.mv td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:top}
+table.mv select{padding:3px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-size:13px;margin:1px 0}
 /* 下の操作 */
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0}
 .notice{border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:14px}
@@ -120,7 +134,7 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
   <div class="card help">
     <span class="step"><span class="num">1</span>名前を入れる</span>
     <span class="step"><span class="num">2</span>空いている日のマスに入力：<code>○</code>＝いつでも　<code>10-15</code>＝10時〜15時　<code>午後</code>　<code>18以降</code>　<code>10-12,15-18</code></span>
-    <span class="step"><span class="num">3</span>「自動で割り振る」を押す</span>
+    <span class="step"><span class="num">3</span>「自動で割り振る」を押す（各週、1人1回ずつ重ならないように決まります）</span>
     <span class="muted small">日付の見出しをクリックすると休みの日になります</span>
   </div>
 
@@ -188,9 +202,15 @@ const TIMES = Array.from({length:37},(_,i)=>fromMin(360+i*30));   // 6:00〜24:0
      backupAt, changedAt }
    ====================================================== */
 const KEY="nichitei:v2";
+const DEFAULTS={perWeek:1, duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0, weekStart:1};
 function load(){
-  try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d && d.months) return d; }catch{}
-  return {settings:{duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0}, months:{}, backupAt:null, changedAt:null};
+  let d=null;
+  try{ d=JSON.parse(localStorage.getItem(KEY)); }catch{}
+  if(!d || !d.months) d={settings:{}, months:{}, backupAt:null, changedAt:null};
+  d.settings={...DEFAULTS, ...d.settings};
+  // 古い形式（1人1回）の割り振り結果は使えないので消す
+  for(const mo of Object.values(d.months)) if(mo.assignment && Object.values(mo.assignment.map||{}).some(v=>v && !Array.isArray(v))) mo.assignment=null;
+  return d;
 }
 let DB=load();
 function save(){
@@ -245,11 +265,11 @@ function cellTip(text, st){
 }
 
 /* ======================================================
-   割り振り
-   1. 各お客さんの空き時間から、1回の時間ぶん入る開始時刻を全部ならべる（候補）
-   2. 候補が少ない人から順に、ほかの人の候補をなるべくつぶさない時間を選ぶ
-   3. 組み合わせを探索して、日程が入る人数がいちばん多くなるものを選ぶ
-   入力した順番は関係しない（同じ条件の人どうしはくじ引きのように決まる）。
+   割り振り（週ごと）
+   ・月を週に分け、各お客さんに「週◯回」ずつ入れる
+   ・各週の中で、日程が入る回数がいちばん多くなる組み合わせを選ぶ
+   ・前の週に入らなかった人を次の週では優先する（同じ人ばかり外れないように）
+   ・表の上の順番や入力した順番は関係しない（同じ条件の人どうしはくじ引きのように決まる）
    ====================================================== */
 function candidatesOf(p, st, off){
   const dur=st.duration, step = dur%30 ? 15 : 30;
@@ -265,50 +285,100 @@ function candidatesOf(p, st, off){
 const clash=(a,b,gap)=> a.date===b.date && a.s < b.e+gap && b.s < a.e+gap;
 function rng(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 
-function allocate(people, st, off, seed){
-  const gap=st.gap||0, perDay=st.perDay||0, rnd=rng(seed);
-  const P = people.map(p=>({id:p.id, cands:candidatesOf(p,st,off), r:rnd()}));
-  for(const p of P){
-    for(const c of p.cands){
-      let n=0; for(const q of P) if(q!==p) for(const d of q.cands) if(clash(c,d,gap)) n++;
-      c.score = n + rnd()*0.9;
-    }
-    p.cands.sort((a,b)=>a.score-b.score);
+// 月の日付を週に分ける（weekStart: 1=月曜はじまり, 0=日曜はじまり）
+function weeksOf(key=curMonth, weekStart=DB.settings.weekStart){
+  const out=[];
+  for(const d of monthDates(key)){
+    if(!out.length || parseD(d).getDay()===weekStart) out.push({no:out.length+1, dates:[]});
+    out.at(-1).dates.push(d);
   }
-  const order=[...P].sort((a,b)=>a.cands.length-b.cands.length || a.r-b.r);
+  return out;
+}
+
+// 1週間分：units（1回ぶんの枠）をできるだけ多く、重ならないように置く
+function solveWeek(units, st, rnd){
+  const gap=st.gap||0, perDay=st.perDay||0;
+  for(const u of units){
+    for(const c of u.cands){
+      let n=0; for(const v of units) if(v.pid!==u.pid) for(const d of v.cands) if(clash(c,d,gap)) n++;
+      c.score = n + rnd()*0.2 + (c.s%60?0.3:0);
+    }
+    u.cands.sort((a,b)=>a.score-b.score);
+  }
+  // 前に外れた回数が多い人 → 候補が少ない人 → くじ の順に決めていく
+  const order=[...units].sort((a,b)=>b.missed-a.missed || a.cands.length-b.cands.length || a.r-b.r);
   const N=order.length, placed=[], dayCount={}, pick=new Array(N).fill(null);
   let best=-1, bestPick=[], nodes=0; const t0=performance.now();
-  const fits=c=> (!perDay || (dayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap));
+  const fits=(c,u)=> (!perDay || (dayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap) || (x.pid===u.pid && x.date===c.date));
   (function dfs(i,count){
-    if(best===N || ++nodes>400000 || (nodes%2000===0 && performance.now()-t0>2500)) return;
+    if(best===N || ++nodes>200000 || (nodes%2000===0 && performance.now()-t0>1500)) return;
     if(count+(N-i)<=best) return;
     if(i===N){ best=count; bestPick=pick.slice(); return; }
-    for(const c of order[i].cands){
-      if(!fits(c)) continue;
-      placed.push(c); dayCount[c.date]=(dayCount[c.date]||0)+1; pick[i]=c;
+    const u=order[i];
+    for(const c of u.cands){
+      if(!fits(c,u)) continue;
+      const x={...c, pid:u.pid};
+      placed.push(x); dayCount[c.date]=(dayCount[c.date]||0)+1; pick[i]=x;
       dfs(i+1,count+1);
       placed.pop(); dayCount[c.date]--; pick[i]=null;
-      if(best===N || nodes>400000) return;
+      if(best===N || nodes>200000) return;
     }
     dfs(i+1,count);
   })(0,0);
-  // 仕上げ：決まった日の中で、ほかの人と重ならない範囲でなるべく早い「ちょうどの時刻」に寄せる
-  const fin=order.map((p,i)=>bestPick[i]);
+  // 仕上げ：決まった日の中で、ほかと重ならない範囲でなるべく早い「ちょうどの時刻」に寄せる
+  const fin=bestPick.slice();
   const pref=c=> (c.s%60?1000:0) + c.s;
   for(let round=0; round<3; round++){
-    const idx=fin.map((c,i)=>i).filter(i=>fin[i]).sort((a,b)=>fin[a].s-fin[b].s);
-    for(const i of idx){
+    for(const i of fin.map((c,i)=>i).filter(i=>fin[i]).sort((a,b)=>fin[a].s-fin[b].s)){
       const others=fin.filter((c,j)=>c && j!==i);
       const better=order[i].cands.filter(c=>c.date===fin[i].date && !others.some(o=>clash(c,o,gap))).sort((a,b)=>pref(a)-pref(b))[0];
-      if(better && pref(better)<pref(fin[i])) fin[i]=better;
+      if(better && pref(better)<pref(fin[i])) fin[i]={...better, pid:order[i].pid};
     }
   }
-  const map={};
-  order.forEach((p,i)=>{ const c=fin[i]; map[p.id]= c ? {date:c.date, start:fromMin(c.s), end:fromMin(c.e)} : null; });
+  return order.map((u,i)=>({u, c:fin[i]}));
+}
+
+// 月全体：map = { 人のid: [{date,start,end}, ...] }
+function allocate(people, st, off, seed){
+  const rnd=rng(seed), per=st.perWeek||1, missed={}, map={};
+  const lots=Object.fromEntries(people.map(p=>[p.id, rnd()]));
+  for(const p of people){ map[p.id]=[]; missed[p.id]=0; }
+  for(const w of weeksOf()){
+    const inWeek=new Set(w.dates), units=[];
+    for(const p of people){
+      const cands=candidatesOf(p,st,off).filter(c=>inWeek.has(c.date));
+      if(!cands.length) continue;
+      const want=Math.min(per, new Set(cands.map(c=>c.date)).size);   // 空き日が1日だけなら1回まで
+      for(let k=0;k<want;k++) units.push({pid:p.id, cands:cands.map(c=>({...c})), missed:missed[p.id], want, r:lots[p.id]+k});
+    }
+    const res=solveWeek(units, st, rnd);
+    const got={};
+    for(const {u,c} of res) if(c){ map[u.pid].push({date:c.date, start:fromMin(c.s), end:fromMin(c.e)}); got[u.pid]=(got[u.pid]||0)+1; }
+    for(const u of units) if((got[u.pid]||0)<u.want && !u.counted){ missed[u.pid]++; units.filter(v=>v.pid===u.pid).forEach(v=>v.counted=true); }
+  }
+  for(const id in map) map[id].sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
   return map;
 }
 // 入力が割り振りのあとで変わったかを見るための印
 const signature = () => JSON.stringify([DB.settings, M().off, M().people.map(p=>[p.id,p.cells])]);
+// 割り振り結果を人ごと・週ごとにまとめる
+function summarize(){
+  const mo=M(), st=DB.settings, off=new Set(mo.off), map=mo.assignment?.map||{}, per=st.perWeek||1;
+  const weeks=weeksOf();
+  const out={};
+  for(const p of mo.people.filter(p=>p.name)){
+    const slots=Array.isArray(map[p.id]) ? map[p.id] : [];
+    const cands=candidatesOf(p,st,off);
+    const wk=weeks.map(w=>{
+      const set=new Set(w.dates);
+      const got=slots.filter(s=>set.has(s.date)).length, days=new Set(cands.filter(c=>set.has(c.date)).map(c=>c.date)).size;
+      const want=Math.min(per, days);
+      return {w, got, want, hasAvail:days>0, short: Math.max(0, want-got)};
+    });
+    out[p.id]={slots, wk, short:wk.reduce((a,x)=>a+x.short,0), noAvailWeeks:wk.filter(x=>!x.hasAvail).map(x=>x.w.no)};
+  }
+  return out;
+}
 
 /* ======================================================
    画面
@@ -327,10 +397,12 @@ function renderSettings(){
   const st=DB.settings;
   const opt=(list,v,f)=>list.map(x=>`<option value="${x}" ${x===v?"selected":""}>${f(x)}</option>`).join("");
   $("#settings").innerHTML=`
+    <label>1人 <select data-k="perWeek">${opt([1,2,3],st.perWeek,x=>`週${x}回`)}</select></label>
     <label>1回の時間 <select data-k="duration">${opt([30,45,60,75,90,120,150,180],st.duration,durLabel)}</select></label>
     <label>営業時間 <select data-k="dayStart">${opt(TIMES,st.dayStart,hm)}</select>〜<select data-k="dayEnd">${opt(TIMES,st.dayEnd,hm)}</select></label>
     <label>お客さんの間に空ける時間 <select data-k="gap">${opt([0,10,15,30,45,60],st.gap,x=>x?durLabel(x):"なし")}</select></label>
-    <label>1日の上限 <select data-k="perDay">${opt([0,1,2,3,4,5,6,7,8,10,12],st.perDay,x=>x?x+"件":"なし")}</select></label>`;
+    <label>1日の上限 <select data-k="perDay">${opt([0,1,2,3,4,5,6,7,8,10,12],st.perDay,x=>x?x+"件":"なし")}</select></label>
+    <label>週のはじまり <select data-k="weekStart">${opt([1,0],st.weekStart,x=>x?"月曜":"日曜")}</select></label>`;
   $$("#settings select").forEach(s=>s.onchange=()=>{
     const k=s.dataset.k, v= /^\d+$/.test(s.value) ? +s.value : s.value;
     const next={...DB.settings,[k]:v};
@@ -340,34 +412,39 @@ function renderSettings(){
 }
 
 function renderSheet(){
-  const mo=M(), st=DB.settings, dates=monthDates(), off=new Set(mo.off);
+  const mo=M(), st=DB.settings, dates=monthDates(), off=new Set(mo.off), weeks=weeksOf();
   const asg = mo.assignment?.map || {};
+  const pickOf=(pid,d)=> Array.isArray(asg[pid]) ? asg[pid].find(s=>s.date===d) : null;
+  const sum = mo.assignment ? summarize() : {};
+  const wkStart=new Set(weeks.map(w=>w.dates[0]));
   // いつも最後に空の行を1つ置いておく（そこに名前を書くと人が増える）
   if(!mo.people.length || mo.people.at(-1).name || Object.keys(mo.people.at(-1).cells).length) mo.people.push({id:uid(), name:"", cells:{}});
   const people=mo.people;
   const counts=dates.map(d=>people.filter(p=>{ const r=parseCell(p.cells[d],st); return Array.isArray(r)&&r.length; }).length);
-  const picks=dates.map(d=>people.filter(p=>asg[p.id]?.date===d).length);
-  let h=`<table class="sheet"><thead><tr><th class="namecol">お客さん ＼ 日付</th>`;
+  const picks=dates.map(d=>people.filter(p=>pickOf(p.id,d)).length);
+  let h=`<table class="sheet"><thead><tr class="wkrow"><th class="namecol" rowspan="2">お客さん ＼ 日付</th>`;
+  for(const w of weeks) h+=`<th colspan="${w.dates.length}" class="wk wk-start">${w.no}週目</th>`;
+  h+=`</tr><tr class="dayrow">`;
   for(const d of dates){
     const dt=parseD(d), w=dt.getDay();
-    h+=`<th data-off="${d}" class="${w===0?"sun":w===6?"sat":""} ${off.has(d)?"off":""}" title="クリックで${off.has(d)?"営業日に戻す":"休みにする"}">${dt.getDate()}<span class="wd">${off.has(d)?"休み":WD[w]}</span></th>`;
+    h+=`<th data-off="${d}" class="${w===0?"sun":w===6?"sat":""} ${off.has(d)?"off":""} ${wkStart.has(d)?"wk-start":""}" title="クリックで${off.has(d)?"営業日に戻す":"休みにする"}">${dt.getDate()}<span class="wd">${off.has(d)?"休み":WD[w]}</span></th>`;
   }
   h+=`</tr></thead><tbody>`;
   people.forEach((p,ri)=>{
     const last = ri===people.length-1;
-    const a=asg[p.id];
-    const status = !mo.assignment || last || !p.name ? "" : a ? `<span class="st ok">決定</span>` : (p.id in asg ? `<span class="st ng">未定</span>` : "");
+    const s=sum[p.id];
+    const status = !s ? "" : s.short ? `<span class="st ng" title="空き日はあるのに入らなかった回数">不足${s.short}</span>` : `<span class="st ok">${s.slots.length}回</span>`;
     h+=`<tr data-pid="${p.id}"><td class="namecol"><div class="namebox">
         <input class="n" data-r="${ri}" data-c="-1" value="${esc(p.name)}" placeholder="${last?"＋ 名前を入力":""}" maxlength="40" aria-label="名前">
         ${status}${last?"":`<button class="del" data-del="${p.id}" title="この行を消す" aria-label="${esc(p.name)}の行を消す">×</button>`}</div></td>`;
     dates.forEach((d,ci)=>{
-      const v=p.cells[d]||"", r=parseCell(v,st);
-      const cls=[ off.has(d)?"off":"", v ? (Array.isArray(r)&&r.length ? "has" : "bad") : "", a&&a.date===d ? "pick":"" ].join(" ");
-      h+=`<td class="cell ${cls}"><input class="c" data-r="${ri}" data-c="${ci}" data-d="${d}" value="${esc(v)}" ${off.has(d)?"disabled":""} aria-label="${esc(p.name||"新しい人")} ${dayLabel(d)}">${a&&a.date===d?`<span class="lbl">${hm(a.start)}〜</span>`:""}</td>`;
+      const v=p.cells[d]||"", r=parseCell(v,st), a=pickOf(p.id,d);
+      const cls=[ off.has(d)?"off":"", v ? (Array.isArray(r)&&r.length ? "has" : "bad") : "", a ? "pick":"", wkStart.has(d)?"wk-start":"" ].join(" ");
+      h+=`<td class="cell ${cls}"><input class="c" data-r="${ri}" data-c="${ci}" data-d="${d}" value="${esc(v)}" ${off.has(d)?"disabled":""} aria-label="${esc(p.name||"新しい人")} ${dayLabel(d)}">${a?`<span class="lbl">${hm(a.start)}〜</span>`:""}</td>`;
     });
     h+=`</tr>`;
   });
-  h+=`</tbody><tfoot><tr><td class="namecol">${mo.assignment?"決定 ／ 空いてる人":"空いてる人"}</td>${dates.map((d,i)=>`<td>${mo.assignment&&picks[i]?`<b style="color:var(--pick-ink)">${picks[i]}</b> / `:""}${counts[i]||""}</td>`).join("")}</tr></tfoot></table>`;
+  h+=`</tbody><tfoot><tr><td class="namecol">${mo.assignment?"決定 ／ 空いてる人":"空いてる人"}</td>${dates.map((d,i)=>`<td class="${wkStart.has(d)?"wk-start":""}">${mo.assignment&&picks[i]?`<b style="color:var(--pick-ink)">${picks[i]}</b> / `:""}${counts[i]||""}</td>`).join("")}</tr></tfoot></table>`;
   const wrap=$("#sheetWrap"), sx=wrap.scrollLeft, sy=wrap.scrollTop;
   const focused=document.activeElement?.closest?.("#sheetWrap") ? [document.activeElement.dataset.r, document.activeElement.dataset.c] : null;
   wrap.innerHTML=h; wrap.scrollLeft=sx; wrap.scrollTop=sy;
@@ -437,67 +514,93 @@ function renderResult(){
   $("#run").disabled = !named.length;
   ["#rerun","#clear","#copyAll"].forEach(s=>$(s).hidden=!A);
   if(!A){ el.innerHTML=""; return; }
-  const off=new Set(mo.off), gap=st.gap||0, map=A.map;
-  const assigned=named.filter(p=>map[p.id]), un=named.filter(p=>!map[p.id]);
+  const off=new Set(mo.off), gap=st.gap||0, per=st.perWeek||1, map=A.map, weeks=weeksOf();
+  const sum=summarize();
   const stale = A.sig!==signature();
-  const slots=assigned.map(p=>({id:p.id, date:map[p.id].date, s:toMin(map[p.id].start), e:toMin(map[p.id].end)}));
-  const warn={};
-  for(const a of slots){
-    if(!candidatesOf(mo.people.find(p=>p.id===a.id),st,off).some(c=>c.date===a.date&&c.s===a.s)) warn[a.id]="空き時間の外";
-    if(slots.some(b=>b!==a && clash(a,b,gap))) warn[a.id]="時間が重なっています";
+  // 手で動かしたあとなどのチェック
+  const all=named.flatMap(p=>sum[p.id].slots.map(s=>({pid:p.id, slot:s, date:s.date, s:toMin(s.start), e:toMin(s.end)})));
+  const warn=new Map();
+  for(const a of all){
+    if(!candidatesOf(named.find(p=>p.id===a.pid),st,off).some(c=>c.date===a.date&&c.s===a.s)) warn.set(a.slot,"空き時間の外");
+    if(all.some(b=>b!==a && clash(a,b,gap))) warn.set(a.slot,"時間が重なっています");
   }
-  const days=[...new Set(assigned.map(p=>map[p.id].date))].sort();
-  const sel=p=>{ const cur=map[p.id]; const cs=candidatesOf(p,st,off);
-    return `<select data-move="${p.id}" title="手で動かす"><option value="">（未定にする）</option>
-      ${cur && !cs.some(c=>c.date===cur.date&&fromMin(c.s)===cur.start)?`<option selected>${esc(slotLabel(cur))}</option>`:""}
-      ${cs.map(c=>{ const busy=slots.some(b=>b.id!==p.id&&clash(c,b,gap)); return `<option value="${c.date}|${fromMin(c.s)}|${fromMin(c.e)}" ${cur&&cur.date===c.date&&cur.start===fromMin(c.s)?"selected":""}>${esc(slotLabel({date:c.date,start:fromMin(c.s),end:fromMin(c.e)}))}${busy?" ※重なる":""}</option>`; }).join("")}</select>`; };
+  const totalNeed=named.reduce((n,p)=>n+sum[p.id].wk.reduce((a,x)=>a+x.want,0),0);
+  const totalGot=all.length, short=named.filter(p=>sum[p.id].short);
+  const wkName=w=>`${w.no}週目（${dayLabel(w.dates[0]).replace(/\(.\)/,"")}〜${dayLabel(w.dates.at(-1)).replace(/\(.\)/,"")}）`;
+
+  // 手で動かす表：人 × 週
+  const moveSel=(p,w,k)=>{
+    const set=new Set(w.dates), mine=sum[p.id].slots.filter(s=>set.has(s.date)), cur=mine[k];
+    const cs=candidatesOf(p,st,off).filter(c=>set.has(c.date));
+    if(!cs.length && !cur) return `<span class="muted small">空きなし</span>`;
+    return `<select data-move="${p.id}" data-w="${w.no}" data-k="${k}"><option value="">（なし）</option>
+      ${cur && !cs.some(c=>c.date===cur.date&&fromMin(c.s)===cur.start)?`<option selected value="${cur.date}|${cur.start}|${cur.end}">${esc(slotLabel(cur))}</option>`:""}
+      ${cs.map(c=>{ const v=`${c.date}|${fromMin(c.s)}|${fromMin(c.e)}`; const busy=all.some(b=>b.slot!==cur&&clash(c,b,gap));
+        return `<option value="${v}" ${cur&&cur.date===c.date&&cur.start===fromMin(c.s)?"selected":""}>${esc(slotLabel({date:c.date,start:fromMin(c.s),end:fromMin(c.e)}))}${busy?" ※重なる":""}</option>`; }).join("")}</select>`;
+  };
+
   el.innerHTML=`<div class="card">
     <h2>割り振り結果</h2>
     ${stale?`<div class="notice warn">割り振りのあとで表や設定が変わりました。「もう一度自動で割り振る」を押すと組み直します。</div>`:""}
-    <div class="notice ${un.length?"warn":"ok"}">${un.length?`${named.length}人中 ${assigned.length}人が決まりました。<b>入らなかった人：${un.map(p=>esc(p.name)).join("、")}</b>（空いている日を増やしてもらうか、右の選択で手で動かしてください）`:`全員（${named.length}人）の日程が決まりました`}</div>
-    <div class="results">
-      ${days.map(d=>`<div class="res-day"><div class="d">${dayLabel(d)}</div>
-        ${assigned.filter(p=>map[p.id].date===d).sort((a,b)=>map[a.id].start.localeCompare(map[b.id].start)).map(p=>`
-          <div class="res-item"><span class="t">${hm(map[p.id].start)}–${hm(map[p.id].end)}</span><span class="who">${esc(p.name)}${warn[p.id]?`<span class="tag ng">${warn[p.id]}</span>`:""}</span>
-          <button class="btn sm" data-msg="${p.id}" title="LINEに貼る文をコピー">連絡文</button></div>`).join("")}
-      </div>`).join("")}
+    <div class="notice ${short.length?"warn":"ok"}">${short.length
+      ? `${totalNeed}回中 ${totalGot}回が決まりました。<b>入りきらなかった人：${short.map(p=>`${esc(p.name)}（${sum[p.id].wk.filter(x=>x.short).map(x=>x.w.no+"週目").join("・")}）`).join("、")}</b><br>その週の空き日を増やしてもらうか、下の「手で動かす」で調整してください。`
+      : `空き日を書いてもらった週は、全員 週${per}回 入りました（計${totalGot}回）`}</div>
+    <div class="people">
+      ${named.map(p=>{ const s=sum[p.id]; return `<div class="person">
+        <div class="ph"><b>${esc(p.name)}</b><span class="muted small">${s.slots.length}回</span><span style="flex:1"></span>
+          ${s.slots.length?`<button class="btn sm" data-msg="${p.id}" title="LINEに貼る文をコピー">連絡文</button>`:""}</div>
+        ${s.slots.map(x=>`<div class="ps">${esc(slotLabel(x))}${warn.get(x)?`<span class="tag ng">${warn.get(x)}</span>`:""}</div>`).join("")}
+        ${s.wk.filter(x=>x.short).map(x=>`<div class="ps" style="color:var(--ng)">${x.w.no}週目：入りきらず</div>`).join("")}
+        ${s.noAvailWeeks.length?`<div class="ps muted small">空き日なし：${s.noAvailWeeks.map(n=>n+"週目").join("・")}</div>`:""}
+      </div>`; }).join("")}
     </div>
-    <details style="margin-top:12px"><summary>手で動かす</summary>
-      <div class="results" style="margin-top:8px">${named.map(p=>`<div class="res-item"><span class="who">${esc(p.name)}</span>${sel(p)}</div>`).join("")}</div>
+    <details style="margin-top:14px" id="manual"><summary>手で動かす</summary>
+      <div style="overflow:auto;margin-top:8px"><table class="mv"><thead><tr><th></th>${weeks.map(w=>`<th>${wkName(w)}</th>`).join("")}</tr></thead>
+      <tbody>${named.map(p=>`<tr><th>${esc(p.name)}</th>${weeks.map(w=>`<td>${Array.from({length:per},(_,k)=>moveSel(p,w,k)).join("<br>")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     </details>
   </div>`;
+  const [,mm]=curMonth.split("-");
   $$("[data-msg]",el).forEach(b=>b.onclick=()=>{
     const p=named.find(x=>x.id===b.dataset.msg);
-    copyText(`${p.name}様\n次回のセッションは\n${slotLabel(map[p.id])}\nでお願いいたします。`, `${p.name}さんへの連絡文をコピーしました`);
+    copyText(`${p.name}様\n${+mm}月のセッション日程です。\n${sum[p.id].slots.map(s=>"・"+slotLabel(s)).join("\n")}\nよろしくお願いいたします。`, `${p.name}さんへの連絡文をコピーしました`);
   });
   $$("[data-move]",el).forEach(s=>s.onchange=()=>{
-    const [date,start,end]=s.value.split("|");
-    map[s.dataset.move] = s.value ? {date,start,end} : null;
-    save(); render(); $("#result details")?.setAttribute("open","");
+    const pid=s.dataset.move, w=weeks[+s.dataset.w-1], set=new Set(w.dates);
+    const sels=$$(`[data-move="${pid}"][data-w="${w.no}"]`,el).map(x=>x.value).filter(Boolean);
+    const kept=(Array.isArray(map[pid])?map[pid]:[]).filter(x=>!set.has(x.date));
+    const added=sels.map(v=>{ const [date,start,end]=v.split("|"); return {date,start,end}; });
+    map[pid]=[...kept,...added].sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+    save(); render(); $("#manual")?.setAttribute("open","");
   });
 }
 
 /* ---------- ボタン ---------- */
 function run(seed){
   const mo=M(), named=mo.people.filter(p=>p.name);
-  const noName=mo.people.filter(p=>!p.name && Object.keys(p.cells).length);
-  if(noName.length) toast("名前が空の行は割り振りに入りません");
+  if(mo.people.some(p=>!p.name && Object.keys(p.cells).length)) toast("名前が空の行は割り振りに入りません");
   const bad=named.filter(p=>Object.values(p.cells).some(v=>!Array.isArray(parseCell(v,DB.settings))));
-  if(bad.length && !confirm(`読み取れないマスがあります（${bad.map(p=>p.name).join("、")}）。赤いマスは「空いていない」として扱います。このまま割り振りますか？`)) return;
+  if(bad.length && !confirm(`読み取れないマスがあります（${bad.map(p=>p.name).join("、")}）。赤いマスは「空いていない」として扱います。このまま割り振りますか？`)) return false;
   mo.assignment={sig:signature(), map:allocate(named, DB.settings, new Set(mo.off), seed)};
   save(); render();
   $("#result").scrollIntoView({behavior:"smooth", block:"nearest"});
+  return true;
 }
-$("#run").onclick=()=>{ if(M().assignment && !confirm("いまの結果（手で動かした分も含む）を消して、組み直しますか？")) return; run(12345); toast("割り振りました"); };
-$("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、別の組み合わせにしますか？")) return; run((Math.random()*1e9)|0); toast("別の組み合わせにしました"); };
+$("#run").onclick=()=>{ if(M().assignment && !confirm("いまの結果（手で動かした分も含む）を消して、組み直しますか？")) return; if(run(12345)) toast("割り振りました"); };
+$("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、別の組み合わせにしますか？")) return; if(run((Math.random()*1e9)|0)) toast("別の組み合わせにしました"); };
 $("#clear").onclick=()=>{ if(!confirm("割り振り結果を消しますか？（表の入力は残ります）")) return; M().assignment=null; save(); render(); };
 $("#copyAll").onclick=()=>{
-  const mo=M(), map=mo.assignment.map, named=mo.people.filter(p=>p.name);
-  const [y,m]=curMonth.split("-");
+  const mo=M(), sum=summarize(), named=mo.people.filter(p=>p.name);
+  const [,m]=curMonth.split("-");
   const lines=[`【${+m}月の予定】`];
-  named.filter(p=>map[p.id]).sort((a,b)=>(map[a.id].date+map[a.id].start).localeCompare(map[b.id].date+map[b.id].start))
-    .forEach(p=>lines.push(`${slotLabel(map[p.id])}　${p.name}様`));
-  const un=named.filter(p=>!map[p.id]); if(un.length) lines.push(`未定：${un.map(p=>p.name+"様").join("、")}`);
+  for(const w of weeksOf()){
+    const set=new Set(w.dates);
+    const rows=named.flatMap(p=>sum[p.id].slots.filter(s=>set.has(s.date)).map(s=>({p,s}))).sort((a,b)=>(a.s.date+a.s.start).localeCompare(b.s.date+b.s.start));
+    if(!rows.length) continue;
+    lines.push("", `■ ${w.no}週目`);
+    rows.forEach(({p,s})=>lines.push(`${slotLabel(s)}　${p.name}様`));
+  }
+  const short=named.filter(p=>sum[p.id].short);
+  if(short.length) lines.push("", `未定：${short.map(p=>`${p.name}様（${sum[p.id].wk.filter(x=>x.short).map(x=>x.w.no+"週目").join("・")}）`).join("、")}`);
   copyText(lines.join("\n"),"結果をコピーしました");
 };
 $("#carry").onclick=()=>{
