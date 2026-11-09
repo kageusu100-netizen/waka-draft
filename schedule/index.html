@@ -92,6 +92,8 @@ table.sheet{border-collapse:separate;border-spacing:0;font-size:13px}
 .namebox .st.ng{background:var(--ng-soft);color:var(--ng)}
 .namebox .del{border:0;background:none;color:var(--ink3);cursor:pointer;font-size:16px;width:26px;height:100%;opacity:0}
 tr:hover .namebox .del,.namebox .del:focus{opacity:1}
+.namebox .lb{border:1px solid var(--line);background:var(--card);color:var(--ok);font-size:10px;font-weight:700;border-radius:5px;padding:1px 4px;cursor:pointer;margin-right:2px;opacity:0}
+tr:hover .namebox .lb,.namebox .lb:focus{opacity:1}
 .namebox .del:hover{color:var(--ng)}
 /* 週の区切り */
 .sheet thead tr.wkrow th{height:26px;font-size:12px;cursor:default;background:var(--card2)}
@@ -154,6 +156,10 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
 
   <div class="card settings" id="settings"></div>
 
+  <div class="actions" style="margin:0 0 10px">
+    <button class="btn pri" id="lineBtn">LINEの文面から入力</button>
+    <span class="muted small">返信を貼り付けると、表のマスに入る形に変換します（名前の横の「LINE」からも開けます）</span>
+  </div>
   <div class="sheet-wrap" id="sheetWrap"></div>
 
   <div class="actions">
@@ -183,6 +189,22 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
 </div>
 <div id="toast" class="toast" hidden></div>
 <div id="tip" class="tip" hidden></div>
+<div class="modal-bg" id="lineModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lineTitle" style="width:min(680px,100%)">
+    <h2 id="lineTitle">LINEの文面から入力</h2>
+    <label class="f" for="lineWho">お客さん</label>
+    <select id="lineWho" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);min-height:38px"></select>
+    <div id="lineNewWrap" hidden><label class="f" for="lineNewName">新しいお客さんのお名前</label><input type="text" id="lineNewName" maxlength="40" placeholder="例：山田"></div>
+    <label class="f" for="lineText">LINEの返信をそのまま貼り付けてください</label>
+    <textarea id="lineText" style="min-height:140px" placeholder="例）&#10;3日と5日は10時〜15時なら大丈夫です！&#10;火曜日は18時以降ならいけます&#10;20日はダメです"></textarea>
+    <div id="linePreview" style="margin-top:10px"></div>
+    <label style="display:flex;align-items:center;gap:8px;margin:12px 0 0;font-size:14px;cursor:pointer"><input type="checkbox" id="lineReplace" style="width:18px;height:18px"> この人の今月の入力をいったん消してから入れる</label>
+    <div class="actions" style="margin:14px 0 0">
+      <button class="btn pri big" id="lineApply" disabled>表に入れる</button>
+      <button class="btn" id="lineClose">閉じる</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="msgModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="msgTitle">
     <h2 id="msgTitle"></h2>
@@ -475,7 +497,7 @@ function renderSheet(){
     const status = !s ? "" : s.short ? `<span class="st ng" title="空き日はあるのに入らなかった回数">不足${s.short}</span>` : isFx ? `<span class="st fx" title="確定済み">確定</span>` : `<span class="st ok">${s.slots.length}回</span>`;
     h+=`<tr data-pid="${p.id}"><td class="namecol"><div class="namebox">
         <input class="n" data-r="${ri}" data-c="-1" value="${esc(p.name)}" placeholder="${last?"＋ 名前を入力":""}" maxlength="40" aria-label="名前">
-        ${status}${last?"":`<button class="del" data-del="${p.id}" title="この行を消す" aria-label="${esc(p.name)}の行を消す">×</button>`}</div></td>`;
+        ${status}${last||!p.name?"":`<button class="lb" data-line="${p.id}" title="LINEの文面を貼って入力">LINE</button>`}${last?"":`<button class="del" data-del="${p.id}" title="この行を消す" aria-label="${esc(p.name)}の行を消す">×</button>`}</div></td>`;
     dates.forEach((d,ci)=>{
       const v=p.cells[d]||"", r=parseCell(v,st), a=pickOf(p.id,d);
       const fixedHere = a && (mo.fixed?.[p.id]||[]).some(f=>f.date===d && f.start===a.start);
@@ -499,6 +521,7 @@ function bindSheet(){
     if(i>=0) mo.off.splice(i,1); else mo.off.push(d);
     save(); render();
   });
+  $$("[data-line]",wrap).forEach(b=>b.onclick=()=>openLine(b.dataset.line));
   $$("[data-del]",wrap).forEach(b=>b.onclick=()=>{
     const p=mo.people.find(x=>x.id===b.dataset.del);
     if((p.name || Object.keys(p.cells).length) && !confirm(`${p.name||"この行"}を消しますか？`)) return;
@@ -620,6 +643,153 @@ function renderResult(){
   });
   $$("[data-unfix]",el).forEach(b=>b.onclick=()=>{ delete fx[b.dataset.unfix]; save(); render(); });
 }
+
+/* ======================================================
+   LINE の文章から空き日時を読み取る
+   例）「3日 10時〜15時」「5日、8日は終日OK」「12/10 午後」「14日 13:00以降」
+       「火曜と木曜の18時以降」「平日ならいつでも」「3日〜5日」「10日はダメです」
+   日付と時間が別の行でも、前後の行をつなげて読む。
+   返り値：{ cells:{日付:"10-15"}, skipped:[別の月の日付], unread:[読めなかった行] }
+   ====================================================== */
+function parseLine(text, st, monthKey=curMonth){
+  const [Y,MO]=monthKey.split("-").map(Number);
+  const lo=toMin(st.dayStart), hi=toMin(st.dayEnd);
+  const days=monthDates(monthKey);
+  const byWd=w=>days.filter(d=>parseD(d).getDay()===w);
+  const WDC="日月火水木金土";
+  const norm=s=>s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/[：]/g,":").replace(/[／]/g,"/").replace(/[（]/g,"(").replace(/[）]/g,")")
+    .replace(/(\d|時|分|半|日)\s*[-~〜～ー－−—―]\s*(?=\d|午|AM|PM|am|pm)/g,"$1〜")
+    .replace(/(\d|時|分|半)\s*から\s*(?=\d|午)/g,"$1〜")
+    .replace(/\((月|火|水|木|金|土|日|祝)[^)]*\)/g," ");
+  const res={}, skipped=[], unread=[], neg=new Set();
+  const add=(d,r)=>{ (res[d] ||= []).push(r); };
+  const tm=(p,h,m,half)=>{ h=+h; const pm=/午後|pm/i.test(p||""), am=/午前|am/i.test(p||"");
+    if(pm && h<12) h+=12;
+    else if(!am && h<12 && h*60<lo && (h+12)*60<=hi) h+=12;   // 「6時」など営業時間より前なら夕方とみなす
+    return h*60+(+m||0)+(half?30:0); };
+  const T="(午前|午後|AM|PM|am|pm)?\\s*(\\d{1,2})\\s*(?::(\\d{2})|時\\s*(?:(半)|(\\d{1,2})分)?)";
+  const To="(午前|午後|AM|PM|am|pm)?\\s*(\\d{1,2})\\s*(?::(\\d{2})|時\\s*(?:(半)|(\\d{1,2})分)?)?";
+  let pendDates=null, pendTimes=null;
+  // 1行に日付が何個もあるときは、日付ごとに区切る（「15日は11時から、16日は19時〜21時」）。
+  // 「3日と5日は10時〜15時」のように日付だけが並んでいる部分は、次の区切りとまとめる。
+  const DATE_RE=/(?:\d{1,2}\s*[\/月]\s*)?\d{1,2}\s*日?\s*〜\s*(?:\d{1,2}\s*[\/月]\s*)?\d{1,2}\s*日|\d{1,2}\s*[\/月]\s*\d{1,2}\s*日?|(?:\d{1,2}\s*[、,・と]\s*)*\d{1,2}\s*日(?!中)|平日|土日|週末|[月火水木金土日](?:\s*[・、,と]?\s*[月火水木金土日])*\s*曜日?/g;
+  const lines=[];
+  for(const raw of norm(text).split(/\n|。/).map(s=>s.trim()).filter(Boolean)){
+    const idx=[...raw.matchAll(DATE_RE)].map(m=>({i:m.index, len:m[0].length}));
+    if(idx.length<2){ lines.push(raw); continue; }
+    const segs=[]; if(idx[0].i>0) segs.push(raw.slice(0,idx[0].i));
+    idx.forEach((m,k)=>segs.push(raw.slice(m.i, k+1<idx.length ? idx[k+1].i : raw.length)));
+    let carry="";
+    segs.forEach((s,k)=>{
+      const first=k===0 && idx[0].i>0;
+      const m=first?null:s.match(new RegExp(DATE_RE.source));
+      const rest=m? s.slice(m.index+m[0].length) : s;
+      if(!first && k<segs.length-1 && /^[\s、,・と及やorび]*$/.test(rest)){ carry+=s+" "; return; }
+      lines.push(carry+s); carry="";
+    });
+  }
+  for(let line of lines){
+    const isNeg=/(ダメ|だめ|駄目|NG|無理|むり|不可|難しい|むずかしい|厳しい|きびしい|×|✕|行けません|いけません|行けない|空いてな|空いていません|都合が悪|予定があ|埋まって)/i.test(line);
+    const dates=[]; let otherMonth=false;
+    const push=(m,d)=>{ if(m!==MO){ otherMonth=true; skipped.push(`${m}/${d}`); return; } if(d>=1&&d<=days.length) dates.push(`${monthKey}-${pad(d)}`); };
+    // 日付の範囲：12/3〜12/5、3日〜5日、3〜5日
+    line=line.replace(/(?:(\d{1,2})\s*[\/月]\s*)?(\d{1,2})\s*日?\s*〜\s*(?:(\d{1,2})\s*[\/月]\s*)?(\d{1,2})\s*日/g,(all,m1,d1,m2,d2)=>{
+      const m=+(m1||m2||MO); for(let d=+d1; d<=+d2; d++) push(m,d); return " "; });
+    // 12/3、12月3日
+    line=line.replace(/(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/g,(_,m,d)=>{ push(+m,+d); return " "; });
+    // 「3、5、8日」「3と5日」のように最後にだけ「日」があるとき
+    line=line.replace(/((?:\d{1,2}\s*[、,・と]\s*)+)(\d{1,2})\s*日(?!中)/g,(_,list,last)=>{ (list.match(/\d{1,2}/g)||[]).forEach(d=>push(MO,+d)); push(MO,+last); return " "; });
+    // 3日（「1日中」は除く）
+    line=line.replace(/(\d{1,2})\s*日(?!中)/g,(_,d)=>{ push(MO,+d); return " "; });
+    // 曜日
+    line=line.replace(/平日/g,()=>{ [1,2,3,4,5].forEach(w=>byWd(w).forEach(d=>dates.push(d))); return " "; })
+             .replace(/(土日|週末)/g,()=>{ [6,0].forEach(w=>byWd(w).forEach(d=>dates.push(d))); return " "; })
+             .replace(/([月火水木金土日](?:\s*[・、,と]?\s*[月火水木金土日])*)\s*曜日?/g,(all,ws)=>{
+               for(const ch of ws.replace(/[・、,と\s]/g,"")) byWd(WDC.indexOf(ch)).forEach(d=>dates.push(d)); return " "; });
+    // 時間
+    const ranges=[];
+    line=line.replace(new RegExp(To+"\\s*〜\\s*"+To+"\\s*(?:時|まで)?","g"),(all,p1,h1,m1,hf1,mm1,p2,h2,m2,hf2,mm2)=>{
+      const a=tm(p1,h1,m1||mm1,hf1); let b=tm(p2||(/午後|pm/i.test(p1||"")?p1:""),h2,m2||mm2,hf2);
+      if(b<=a && b+720<=24*60) b+=720;
+      ranges.push({from:a,to:b}); return " "; });
+    line=line.replace(new RegExp(To+"\\s*(?:以降|以後|から|〜|すぎ|過ぎ|より後)","g"),(_,p,h,m,hf,mm)=>{ ranges.push({from:tm(p,h,m||mm,hf), to:hi}); return " "; });
+    line=line.replace(new RegExp(To+"\\s*(?:まで|以前|迄|より前)","g"),(_,p,h,m,hf,mm)=>{ ranges.push({from:lo, to:tm(p,h,m||mm,hf)}); return " "; });
+    line=line.replace(new RegExp(T,"g"),(_,p,h,m,hf,mm)=>{ const a=tm(p,h,m||mm,hf); ranges.push({from:a, to:a+st.duration}); return " "; });  // 「10時」だけ → その時刻から1回分
+    if(!ranges.length){   // 時刻が書いてあるときは「夕方6時」の「夕方」などは使わない
+      if(/午前/.test(line)) ranges.push({from:lo,to:12*60});
+      if(/午後|昼から|昼以降/.test(line)) ranges.push({from:12*60,to:hi});
+      if(/夕方/.test(line)) ranges.push({from:17*60,to:hi});
+      if(/夜/.test(line)) ranges.push({from:18*60,to:hi});
+      if(/朝/.test(line)) ranges.push({from:lo,to:11*60});
+    }
+    const full=/(終日|いつでも|何時でも|一日中|1日中|丸一日|大丈夫|OK|ok|オッケー|空いて|可能|行けます|いけます)/i.test(line);
+    const rs=ranges.filter(r=>r.to>r.from);
+    if(isNeg){ dates.forEach(d=>neg.add(d)); pendDates=null; continue; }
+    if(dates.length){
+      if(rs.length){ dates.forEach(d=>rs.forEach(r=>add(d,r))); pendDates=null; }
+      else if(pendTimes){ dates.forEach(d=>pendTimes.forEach(r=>add(d,r))); pendDates=null; }
+      else { dates.forEach(d=>add(d,{from:lo,to:hi,soft:true})); pendDates=dates; }
+    } else if(rs.length){
+      if(pendDates){ pendDates.forEach(d=>{ res[d]=(res[d]||[]).filter(r=>!r.soft); rs.forEach(r=>add(d,r)); }); pendDates=null; }
+      else pendTimes=rs;
+    } else if(!full && !otherMonth && /\d/.test(line)) unread.push(line);
+  }
+  for(const d of neg) delete res[d];
+  // マスに入れる形にまとめる
+  const fmt=m=>{ const h=Math.floor(m/60), mm=m%60; return mm ? `${h}:${pad(mm)}` : `${h}`; };
+  const cells={};
+  for(const d of Object.keys(res).sort()){
+    const rs=res[d].map(r=>({from:Math.max(r.from,lo), to:Math.min(r.to,hi)})).filter(r=>r.to>r.from).sort((a,b)=>a.from-b.from);
+    const merged=[]; for(const r of rs){ const l=merged.at(-1); if(l && r.from<=l.to) l.to=Math.max(l.to,r.to); else merged.push({...r}); }
+    if(!merged.length) continue;
+    cells[d] = merged.length===1 && merged[0].from<=lo && merged[0].to>=hi ? "○" : merged.map(r=>`${fmt(r.from)}-${fmt(r.to)}`).join(",");
+  }
+  return {cells, skipped:[...new Set(skipped)], unread, neg:[...neg]};
+}
+
+function openLine(pid){
+  const mo=M(), m=$("#lineModal"), named=mo.people.filter(p=>p.name);
+  $("#lineWho").innerHTML = named.map(p=>`<option value="${p.id}" ${p.id===pid?"selected":""}>${esc(p.name)}</option>`).join("") + `<option value="" ${pid?"":"selected"}>＋ 新しいお客さん</option>`;
+  $("#lineText").value=""; $("#lineReplace").checked=false;
+  const sync=()=>{ $("#lineNewWrap").hidden = !!$("#lineWho").value; preview(); };
+  const preview=()=>{
+    const st=DB.settings, r=parseLine($("#lineText").value, st);
+    const p=mo.people.find(x=>x.id===$("#lineWho").value);
+    const ds=Object.keys(r.cells);
+    let h="";
+    if(ds.length) h+=`<table class="mv" style="width:100%"><thead><tr><th>日付</th><th>表に入る内容</th><th>いまの入力</th></tr></thead><tbody>${ds.map(d=>{
+        const cur=p?.cells[d]||""; return `<tr><td>${dayLabel(d)}</td><td><b>${esc(r.cells[d])}</b> <span class="muted small">${esc(cellTip(r.cells[d],st))}</span></td><td class="muted">${cur&&cur!==r.cells[d]?esc(cur)+"（上書き）":esc(cur)}</td></tr>`; }).join("")}</tbody></table>`;
+    else if($("#lineText").value.trim()) h+=`<p class="muted small">日付を読み取れませんでした。「3日」「12/5」「火曜」のような書き方が入っているか確認してください。</p>`;
+    if(r.neg.length) h+=`<p class="small" style="color:var(--warn);margin:6px 0 0">都合が悪い日として外した日：${r.neg.map(dayLabel).join("、")}</p>`;
+    if(r.skipped.length) h+=`<p class="small" style="color:var(--warn);margin:6px 0 0">別の月の日付は入れていません：${r.skipped.join("、")}（その月の表で読み取ってください）</p>`;
+    if(r.unread.length) h+=`<p class="small" style="color:var(--ng);margin:6px 0 0">読み取れなかった行：${r.unread.map(esc).join(" ／ ")}（必要なら表で直接入れてください）</p>`;
+    $("#linePreview").innerHTML=h;
+    $("#lineApply").disabled=!ds.length;
+    return r;
+  };
+  $("#lineWho").onchange=sync; $("#lineText").oninput=preview;
+  $("#lineApply").onclick=()=>{
+    const r=preview(); let p=mo.people.find(x=>x.id===$("#lineWho").value);
+    if(!p){
+      const name=$("#lineNewName").value.trim(); if(!name){ toast("お名前を入れてください"); $("#lineNewName").focus(); return; }
+      const blank=mo.people.find(x=>!x.name && !Object.keys(x.cells).length);
+      p = blank || {id:uid(), name:"", cells:{}};
+      p.name=name; if(!blank) mo.people.push(p);
+      if(Object.keys(mo.fixed||{}).length) p.isNew=true;
+    }
+    if($("#lineReplace").checked) p.cells={};
+    Object.assign(p.cells, r.cells);
+    save(); m.hidden=true; render(); toast(`${p.name}さんの空き日を${Object.keys(r.cells).length}日分入れました`);
+  };
+  $("#lineNewName").value="";
+  sync(); m.hidden=false;
+  ($("#lineWho").value ? $("#lineText") : $("#lineNewName")).focus();
+}
+$("#lineBtn").onclick=()=>openLine(null);
+$("#lineClose").onclick=()=>$("#lineModal").hidden=true;
+$("#lineModal").onclick=e=>{ if(e.target.id==="lineModal") $("#lineModal").hidden=true; };
+addEventListener("keydown",e=>{ if(e.key==="Escape") $("#lineModal").hidden=true; });
 
 /* ---------- お客さんへの連絡文 ---------- */
 const jpDate = d => { const x=parseD(d); return `${x.getMonth()+1}月${x.getDate()}日(${WD[x.getDay()]})`; };
