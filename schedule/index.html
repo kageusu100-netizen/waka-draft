@@ -72,6 +72,13 @@ table.sheet{border-collapse:separate;border-spacing:0;font-size:13px}
 .sheet td.cell.has{background:var(--has)}
 .sheet td.cell.bad{background:var(--ng-soft)}
 .sheet td.cell.pick{background:var(--pick);box-shadow:inset 0 0 0 2px var(--pick-ink)}
+.sheet td.cell.fixed{background:var(--pick-ink);box-shadow:none}
+.sheet td.cell.fixed input.c,.sheet td.cell.fixed .lbl{color:var(--card)}
+.namebox .st.fx{background:var(--pick-ink);color:var(--card)}
+.tag.fx{background:var(--pick-ink);color:var(--card)}
+.tag.new{background:var(--acc-soft);color:var(--acc2)}
+.notice.info{background:var(--acc-soft);color:var(--acc2)}
+.linkbtn{border:0;background:none;color:var(--ink3);font-size:12px;padding:2px 0;cursor:pointer;text-decoration:underline}
 .sheet td.cell .lbl{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:11px;font-weight:700;color:var(--pick-ink);pointer-events:none;white-space:nowrap}
 .sheet input.c{width:100%;height:100%;border:0;background:transparent;text-align:center;padding:0 2px;font-size:13px;outline:none}
 .sheet td.cell.pick input.c{padding-bottom:12px}
@@ -141,6 +148,7 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
     <span class="step"><span class="num">1</span>名前を入れる</span>
     <span class="step"><span class="num">2</span>空いている日のマスに入力：<code>○</code>＝いつでも　<code>10-15</code>＝10時〜15時　<code>午後</code>　<code>18以降</code>　<code>10-12,15-18</code></span>
     <span class="step"><span class="num">3</span>「自動で割り振る」を押す（各週、1人1回ずつ重ならないように決まります）</span>
+    <span class="step"><span class="num">4</span>「この結果で確定する」→ 新規の方を下に追加して「残りを自動で割り振る」</span>
     <span class="muted small">日付の見出しをクリックすると休みの日になります</span>
   </div>
 
@@ -152,6 +160,8 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
     <button class="btn pri big" id="run">自動で割り振る</button>
     <button class="btn" id="rerun" hidden>別の組み合わせにする</button>
     <button class="btn" id="clear" hidden>割り振りを消す</button>
+    <button class="btn pri" id="fix" hidden>この結果で確定する</button>
+    <button class="btn" id="unfix" hidden>確定をすべて外す</button>
     <button class="btn" id="copyAll" hidden>結果をコピー</button>
     <span style="flex:1"></span>
     <button class="btn" id="carry" hidden>前の月の名前を入れる</button>
@@ -177,6 +187,7 @@ details > summary{cursor:pointer;font-weight:700;color:var(--ink2)}
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="msgTitle">
     <h2 id="msgTitle"></h2>
     <p class="muted small" style="margin:0 0 8px">このままLINEに貼り付けられます。必要なら直してからコピーしてください。</p>
+    <label style="display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:14px;cursor:pointer"><input type="checkbox" id="msgNew" style="width:18px;height:18px"> 新規の方向けのあいさつにする</label>
     <textarea id="msgText" aria-label="連絡文"></textarea>
     <label class="f" for="msgSign">最後に入れる署名（ジム名・お名前など。次回から自動で入ります）</label>
     <input type="text" id="msgSign" maxlength="60" placeholder="例：パーソナルジム〇〇　山本">
@@ -221,12 +232,13 @@ const TIMES = Array.from({length:37},(_,i)=>fromMin(360+i*30));   // 6:00〜24:0
      backupAt, changedAt }
    ====================================================== */
 const KEY="nichitei:v2";
-const DEFAULTS={perWeek:1, duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0, weekStart:1};
+const DEFAULTS={perWeek:1, duration:60, gap:0, dayStart:"09:00", dayEnd:"21:00", perDay:0, weekStart:1, sign:"パーソナルジム桜薫-ouka-"};
 function load(){
   let d=null;
   try{ d=JSON.parse(localStorage.getItem(KEY)); }catch{}
   if(!d || !d.months) d={settings:{}, months:{}, backupAt:null, changedAt:null};
   d.settings={...DEFAULTS, ...d.settings};
+  if(!d.settings.sign) d.settings.sign=DEFAULTS.sign;
   // 古い形式（1人1回）の割り振り結果は使えないので消す
   for(const mo of Object.values(d.months)) if(mo.assignment && Object.values(mo.assignment.map||{}).some(v=>v && !Array.isArray(v))) mo.assignment=null;
   return d;
@@ -315,8 +327,10 @@ function weeksOf(key=curMonth, weekStart=DB.settings.weekStart){
 }
 
 // 1週間分：units（1回ぶんの枠）をできるだけ多く、重ならないように置く
-function solveWeek(units, st, rnd){
+// blocked: 確定済みで動かさない枠（{date,s,e,pid}）
+function solveWeek(units, st, rnd, blocked=[]){
   const gap=st.gap||0, perDay=st.perDay||0;
+  for(const u of units) u.cands=u.cands.filter(c=>!blocked.some(b=>clash(c,b,gap) || (b.pid===u.pid && b.date===c.date)));
   for(const u of units){
     for(const c of u.cands){
       let n=0; for(const v of units) if(v.pid!==u.pid) for(const d of v.cands) if(clash(c,d,gap)) n++;
@@ -326,7 +340,8 @@ function solveWeek(units, st, rnd){
   }
   // 前に外れた回数が多い人 → 候補が少ない人 → くじ の順に決めていく
   const order=[...units].sort((a,b)=>b.missed-a.missed || a.cands.length-b.cands.length || a.r-b.r);
-  const N=order.length, placed=[], dayCount={}, pick=new Array(N).fill(null);
+  const N=order.length, placed=[...blocked], dayCount={}, pick=new Array(N).fill(null);
+  for(const b of blocked) dayCount[b.date]=(dayCount[b.date]||0)+1;
   let best=-1, bestPick=[], nodes=0; const t0=performance.now();
   const fits=(c,u)=> (!perDay || (dayCount[c.date]||0)<perDay) && !placed.some(x=>clash(c,x,gap) || (x.pid===u.pid && x.date===c.date));
   (function dfs(i,count){
@@ -349,7 +364,7 @@ function solveWeek(units, st, rnd){
   const pref=c=> (c.s%60?1000:0) + c.s;
   for(let round=0; round<3; round++){
     for(const i of fin.map((c,i)=>i).filter(i=>fin[i]).sort((a,b)=>fin[a].s-fin[b].s)){
-      const others=fin.filter((c,j)=>c && j!==i);
+      const others=[...blocked, ...fin.filter((c,j)=>c && j!==i)];
       const better=order[i].cands.filter(c=>c.date===fin[i].date && !others.some(o=>clash(c,o,gap))).sort((a,b)=>pref(a)-pref(b))[0];
       if(better && pref(better)<pref(fin[i])) fin[i]={...better, pid:order[i].pid};
     }
@@ -358,19 +373,23 @@ function solveWeek(units, st, rnd){
 }
 
 // 月全体：map = { 人のid: [{date,start,end}, ...] }
-function allocate(people, st, off, seed){
+// fixed（確定済みの日程）はそのまま残し、足りない週だけ追加で割り振る
+function allocate(people, st, off, seed, fixed={}){
   const rnd=rng(seed), per=st.perWeek||1, missed={}, map={};
   const lots=Object.fromEntries(people.map(p=>[p.id, rnd()]));
-  for(const p of people){ map[p.id]=[]; missed[p.id]=0; }
+  for(const p of people){ map[p.id]=[...(fixed[p.id]||[])]; missed[p.id]=0; }
+  const fixedAll=Object.entries(fixed).flatMap(([pid,list])=>list.map(x=>({date:x.date, s:toMin(x.start), e:toMin(x.end), pid})));
   for(const w of weeksOf()){
     const inWeek=new Set(w.dates), units=[];
+    const blocked=fixedAll.filter(b=>inWeek.has(b.date));
     for(const p of people){
       const cands=candidatesOf(p,st,off).filter(c=>inWeek.has(c.date));
       if(!cands.length) continue;
       const want=Math.min(per, new Set(cands.map(c=>c.date)).size);   // 空き日が1日だけなら1回まで
-      for(let k=0;k<want;k++) units.push({pid:p.id, cands:cands.map(c=>({...c})), missed:missed[p.id], want, r:lots[p.id]+k});
+      const already=blocked.filter(b=>b.pid===p.id).length;
+      for(let k=already;k<want;k++) units.push({pid:p.id, cands:cands.map(c=>({...c})), missed:missed[p.id], want:want-already, r:lots[p.id]+k});
     }
-    const res=solveWeek(units, st, rnd);
+    const res=solveWeek(units, st, rnd, blocked);
     const got={};
     for(const {u,c} of res) if(c){ map[u.pid].push({date:c.date, start:fromMin(c.s), end:fromMin(c.e)}); got[u.pid]=(got[u.pid]||0)+1; }
     for(const u of units) if((got[u.pid]||0)<u.want && !u.counted){ missed[u.pid]++; units.filter(v=>v.pid===u.pid).forEach(v=>v.counted=true); }
@@ -452,13 +471,15 @@ function renderSheet(){
   people.forEach((p,ri)=>{
     const last = ri===people.length-1;
     const s=sum[p.id];
-    const status = !s ? "" : s.short ? `<span class="st ng" title="空き日はあるのに入らなかった回数">不足${s.short}</span>` : `<span class="st ok">${s.slots.length}回</span>`;
+    const isFx = !!mo.fixed?.[p.id];
+    const status = !s ? "" : s.short ? `<span class="st ng" title="空き日はあるのに入らなかった回数">不足${s.short}</span>` : isFx ? `<span class="st fx" title="確定済み">確定</span>` : `<span class="st ok">${s.slots.length}回</span>`;
     h+=`<tr data-pid="${p.id}"><td class="namecol"><div class="namebox">
         <input class="n" data-r="${ri}" data-c="-1" value="${esc(p.name)}" placeholder="${last?"＋ 名前を入力":""}" maxlength="40" aria-label="名前">
         ${status}${last?"":`<button class="del" data-del="${p.id}" title="この行を消す" aria-label="${esc(p.name)}の行を消す">×</button>`}</div></td>`;
     dates.forEach((d,ci)=>{
       const v=p.cells[d]||"", r=parseCell(v,st), a=pickOf(p.id,d);
-      const cls=[ off.has(d)?"off":"", v ? (Array.isArray(r)&&r.length ? "has" : "bad") : "", a ? "pick":"", wkStart.has(d)?"wk-start":"" ].join(" ");
+      const fixedHere = a && (mo.fixed?.[p.id]||[]).some(f=>f.date===d && f.start===a.start);
+      const cls=[ off.has(d)?"off":"", v ? (Array.isArray(r)&&r.length ? "has" : "bad") : "", a ? "pick":"", fixedHere?"fixed":"", wkStart.has(d)?"wk-start":"" ].join(" ");
       h+=`<td class="cell ${cls}"><input class="c" data-r="${ri}" data-c="${ci}" data-d="${d}" value="${esc(v)}" ${off.has(d)?"disabled":""} aria-label="${esc(p.name||"新しい人")} ${dayLabel(d)}">${a?`<span class="lbl">${hm(a.start)}〜</span>`:""}</td>`;
     });
     h+=`</tr>`;
@@ -481,7 +502,7 @@ function bindSheet(){
   $$("[data-del]",wrap).forEach(b=>b.onclick=()=>{
     const p=mo.people.find(x=>x.id===b.dataset.del);
     if((p.name || Object.keys(p.cells).length) && !confirm(`${p.name||"この行"}を消しますか？`)) return;
-    mo.people=mo.people.filter(x=>x!==p); if(mo.assignment) delete mo.assignment.map[p.id];
+    mo.people=mo.people.filter(x=>x!==p); if(mo.assignment) delete mo.assignment.map[p.id]; if(mo.fixed) delete mo.fixed[p.id];
     save(); render();
   });
   const cellOf=el=>{ const p=mo.people[+el.dataset.r]; return p; };
@@ -529,10 +550,17 @@ function hideTip(){ $("#tip").hidden=true; }
 function renderResult(){
   const mo=M(), st=DB.settings, A=mo.assignment, el=$("#result");
   const named=mo.people.filter(p=>p.name);
-  $("#run").textContent = A ? "もう一度自動で割り振る" : "自動で割り振る";
+  const fx=mo.fixed||{}, nFixed=named.filter(p=>fx[p.id]).length;
+  $("#run").textContent = nFixed ? "残りを自動で割り振る" : A ? "もう一度自動で割り振る" : "自動で割り振る";
   $("#run").disabled = !named.length;
   ["#rerun","#clear","#copyAll"].forEach(s=>$(s).hidden=!A);
+  $("#clear").textContent = nFixed ? "確定していない分を消す" : "割り振りを消す";
+  $("#fix").hidden = !A || !hasLoose();
+  $("#fix").textContent = nFixed ? "追加分も確定する" : "この結果で確定する";
+  $("#unfix").hidden = !nFixed;
+  $("#rerun").hidden = !A || (nFixed>0 && !hasLoose());
   if(!A){ el.innerHTML=""; return; }
+  const isFixedSlot=(pid,x)=> (fx[pid]||[]).some(f=>f.date===x.date && f.start===x.start);
   const off=new Set(mo.off), gap=st.gap||0, per=st.perWeek||1, map=A.map, weeks=weeksOf();
   const sum=summarize();
   const stale = A.sig!==signature();
@@ -560,15 +588,17 @@ function renderResult(){
 
   el.innerHTML=`<div class="card">
     <h2>割り振り結果</h2>
-    ${stale?`<div class="notice warn">割り振りのあとで表や設定が変わりました。「もう一度自動で割り振る」を押すと組み直します。</div>`:""}
+    ${nFixed?`<div class="notice info">確定済み：${nFixed}人（濃い緑のマス）。新しいお客さんを表に追加して「残りを自動で割り振る」を押すと、確定した日程は動かさずに空いている時間へ割り振ります。</div>`:""}
+    ${stale?`<div class="notice warn">割り振りのあとで表や設定が変わりました。「${nFixed?"残りを自動で割り振る":"もう一度自動で割り振る"}」を押すと組み直します。</div>`:""}
     <div class="notice ${short.length?"warn":"ok"}">${short.length
       ? `${totalNeed}回中 ${totalGot}回が決まりました。<b>入りきらなかった人：${short.map(p=>`${esc(p.name)}（${sum[p.id].wk.filter(x=>x.short).map(x=>x.w.no+"週目").join("・")}）`).join("、")}</b><br>その週の空き日を増やしてもらうか、下の「手で動かす」で調整してください。`
       : `空き日を書いてもらった週は、全員 週${per}回 入りました（計${totalGot}回）`}</div>
     <div class="people">
       ${named.map(p=>{ const s=sum[p.id]; return `<div class="person">
-        <div class="ph"><b>${esc(p.name)}</b><span class="muted small">${s.slots.length}回</span><span style="flex:1"></span>
+        <div class="ph"><b>${esc(p.name)}</b>${fx[p.id]?`<span class="tag fx">確定</span>`:(nFixed?`<span class="tag new">今回</span>`:"")}<span class="muted small">${s.slots.length}回</span><span style="flex:1"></span>
           <button class="btn sm" data-msg="${p.id}" title="LINEに貼る文を作る">連絡文</button></div>
-        ${s.slots.map(x=>`<div class="ps">${esc(slotLabel(x))}${warn.get(x)?`<span class="tag ng">${warn.get(x)}</span>`:""}</div>`).join("")}
+        ${s.slots.map(x=>`<div class="ps">${esc(slotLabel(x))}${nFixed&&!isFixedSlot(p.id,x)?`<span class="tag new">追加</span>`:""}${warn.get(x)?`<span class="tag ng">${warn.get(x)}</span>`:""}</div>`).join("")}
+        ${fx[p.id]?`<button class="linkbtn" data-unfix="${p.id}">確定を外す</button>`:""}
         ${s.wk.filter(x=>x.short).map(x=>`<div class="ps" style="color:var(--ng)">${x.w.no}週目：入りきらず</div>`).join("")}
         ${s.noAvailWeeks.length?`<div class="ps muted small">空き日なし：${s.noAvailWeeks.map(n=>n+"週目").join("・")}</div>`:""}
       </div>`; }).join("")}
@@ -585,17 +615,19 @@ function renderResult(){
     const kept=(Array.isArray(map[pid])?map[pid]:[]).filter(x=>!set.has(x.date));
     const added=sels.map(v=>{ const [date,start,end]=v.split("|"); return {date,start,end}; });
     map[pid]=[...kept,...added].sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+    if(fx[pid]) fx[pid]=map[pid].map(x=>({...x}));   // 確定した人を手で動かしたら、動かした先で確定
     save(); render(); $("#manual")?.setAttribute("open","");
   });
+  $$("[data-unfix]",el).forEach(b=>b.onclick=()=>{ delete fx[b.dataset.unfix]; save(); render(); });
 }
 
 /* ---------- お客さんへの連絡文 ---------- */
 const jpDate = d => { const x=parseD(d); return `${x.getMonth()+1}月${x.getDate()}日(${WD[x.getDay()]})`; };
 const jpDay = d => { const x=parseD(d); return `${x.getMonth()+1}月${x.getDate()}日`; };
-function buildMessage(p, s){
+function buildMessage(p, s, isNew=false){
   const [,mm]=curMonth.split("-"), sign=(DB.settings.sign||"").trim();
   const name=p.name.trim().replace(/\s*(様|さん|さま)$/,"");
-  const L=[`${name}様`, "", "いつもご利用いただき、ありがとうございます。", "先日はご都合をお知らせいただき、ありがとうございました。", ""];
+  const L=[`${name}様`, "", isNew ? "このたびはお申し込みいただき、誠にありがとうございます。" : "いつもご利用いただき、ありがとうございます。", "先日はご都合をお知らせいただき、ありがとうございました。", ""];
   if(s.slots.length){
     L.push(`${+mm}月のトレーニング日程を、下記のとおりご提案させていただきます。`, "");
     s.slots.forEach(x=>L.push(`・${jpDate(x.date)} ${hm(x.start)}〜${hm(x.end)}`));
@@ -612,15 +644,20 @@ function buildMessage(p, s){
 }
 function openMessage(p, s){
   const m=$("#msgModal");
+  const mo=M();
   $("#msgTitle").textContent=`${p.name}さんへの連絡文`;
   $("#msgSign").value=DB.settings.sign||"";
-  $("#msgText").value=buildMessage(p,s);
+  // 確定後に追加した人は、はじめから新規の方向けのあいさつにしておく
+  $("#msgNew").checked = p.isNew ?? (Object.keys(mo.fixed||{}).length>0 && !mo.fixed[p.id]);
+  const rebuild=()=>$("#msgText").value=buildMessage(p,s,$("#msgNew").checked);
+  rebuild();
   m.hidden=false; $("#msgCopy").focus();
   let edited=false;
   $("#msgText").oninput=()=>edited=true;
+  $("#msgNew").onchange=()=>{ p.isNew=$("#msgNew").checked; save(); if(!edited || confirm("手で直した文章を作り直しますか？")){ edited=false; rebuild(); } };
   $("#msgSign").oninput=()=>{
     DB.settings.sign=$("#msgSign").value; save();
-    if(!edited) $("#msgText").value=buildMessage(p,s);
+    if(!edited) rebuild();
   };
   $("#msgCopy").onclick=()=>{ copyText($("#msgText").value, `${p.name}さんへの連絡文をコピーしました`); m.hidden=true; };
 }
@@ -634,14 +671,43 @@ function run(seed){
   if(mo.people.some(p=>!p.name && Object.keys(p.cells).length)) toast("名前が空の行は割り振りに入りません");
   const bad=named.filter(p=>Object.values(p.cells).some(v=>!Array.isArray(parseCell(v,DB.settings))));
   if(bad.length && !confirm(`読み取れないマスがあります（${bad.map(p=>p.name).join("、")}）。赤いマスは「空いていない」として扱います。このまま割り振りますか？`)) return false;
-  mo.assignment={sig:signature(), map:allocate(named, DB.settings, new Set(mo.off), seed)};
+  const fixed=Object.fromEntries(Object.entries(mo.fixed||{}).filter(([pid])=>named.some(p=>p.id===pid)));
+  mo.assignment={sig:signature(), map:allocate(named, DB.settings, new Set(mo.off), seed, fixed)};
   save(); render();
   $("#result").scrollIntoView({behavior:"smooth", block:"nearest"});
   return true;
 }
-$("#run").onclick=()=>{ if(M().assignment && !confirm("いまの結果（手で動かした分も含む）を消して、組み直しますか？")) return; if(run(12345)) toast("割り振りました"); };
-$("#rerun").onclick=()=>{ if(!confirm("いまの結果を消して、別の組み合わせにしますか？")) return; if(run((Math.random()*1e9)|0)) toast("別の組み合わせにしました"); };
-$("#clear").onclick=()=>{ if(!confirm("割り振り結果を消しますか？（表の入力は残ります）")) return; M().assignment=null; save(); render(); };
+const hasFixed = () => Object.keys(M().fixed||{}).length>0;
+// 確定していない割り振りがあるか
+function hasLoose(){
+  const mo=M(), map=mo.assignment?.map||{}, fx=mo.fixed||{};
+  return Object.entries(map).some(([pid,list])=>(list||[]).length > (fx[pid]||[]).length);
+}
+$("#run").onclick=()=>{
+  if(hasLoose() && !confirm(hasFixed() ? "確定していない分の割り振りを組み直します。よろしいですか？（確定した日程はそのままです）" : "いまの結果（手で動かした分も含む）を消して、組み直しますか？")) return;
+  if(run(12345)) toast(hasFixed() ? "確定した日程はそのままで、残りを割り振りました" : "割り振りました");
+};
+$("#rerun").onclick=()=>{ if(!confirm(hasFixed() ? "確定していない分を、別の組み合わせにしますか？" : "いまの結果を消して、別の組み合わせにしますか？")) return; if(run((Math.random()*1e9)|0)) toast("別の組み合わせにしました"); };
+$("#clear").onclick=()=>{
+  const mo=M();
+  if(hasFixed()){
+    if(!confirm("確定していない割り振りを消しますか？（確定した日程と表の入力は残ります）")) return;
+    mo.assignment={sig:signature(), map:Object.fromEntries(Object.entries(mo.fixed).map(([k,v])=>[k,[...v]]))};
+  } else {
+    if(!confirm("割り振り結果を消しますか？（表の入力は残ります）")) return;
+    mo.assignment=null;
+  }
+  save(); render();
+};
+$("#fix").onclick=()=>{
+  const mo=M(), map=mo.assignment.map, named=mo.people.filter(p=>p.name);
+  const n=named.filter(p=>(map[p.id]||[]).length).length;
+  if(!confirm(`いまの割り振り（${n}人分）を確定します。\n確定した日程は、このあと割り振り直しても動きません。\n新しいお客さんを表に追加して「残りを自動で割り振る」を押すと、空いている時間に入れます。`)) return;
+  mo.fixed={};
+  for(const p of named) if((map[p.id]||[]).length) mo.fixed[p.id]=map[p.id].map(x=>({...x}));
+  save(); render(); toast("確定しました");
+};
+$("#unfix").onclick=()=>{ if(!confirm("確定をすべて外しますか？（日程は残りますが、次に割り振ると動くことがあります）")) return; M().fixed={}; save(); render(); toast("確定を外しました"); };
 $("#copyAll").onclick=()=>{
   const mo=M(), sum=summarize(), named=mo.people.filter(p=>p.name);
   const [,m]=curMonth.split("-");
