@@ -502,7 +502,7 @@ const actions = {
       rows.push({room_code:S.code, game:game(), origin:S.me, slot:i, len:vals[i].len, text:v});
     }
     const {error}=await sb.from("cards").insert(rows);
-    if(error) throw error;
+    if(error && error.code!=="23505") throw error; // 23505＝すでに提出済み（二重送信）。読み直すだけでよい
     LS.del(draftKey());
     await fetchAll();
   },
@@ -563,7 +563,7 @@ const actions = {
     if(Object.values(S.compose).some(id=>!handIds.has(id))){ S.compose={}; S.lastMain=""; render(); return toast("手札が変わったので、枠を空にしました。もう一度組んでください"); }
     if(gPoems().some(p=>p.player_id===S.me)) return fetchAll();
     const {error}=await sb.from("poems").insert({room_code:S.code, game:game(), player_id:S.me, form:f, lines});
-    if(error) throw error;
+    if(error && error.code!=="23505") throw error; // 23505＝すでに提出済み（二重送信）。読み直すだけでよい
     await fetchAll();
   },
   async unsubmitPoem(){
