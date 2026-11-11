@@ -319,7 +319,18 @@ function buzz(){ try{ navigator.vibrate?.([90,60,90]); }catch{} }
 
 /* ---------- 通信状態の表示 ---------- */
 const NET = {offline:!navigator.onLine, channelDown:false, fetchFail:false};
-function updateNet(){ $("#net").hidden = !(NET.offline || ((NET.channelDown||NET.fetchFail) && S.code)); }
+/* サーバー（Supabase）が休止中のときに友人にも分かるようにする案内 */
+const SERVER_DOWN="サーバーにつながりません。しばらく誰も遊ばないと休止することがあります。作った人に「和歌ドラフトが動かない」と連絡してください。";
+function serverDown(e){
+  if(!navigator.onLine) return false;
+  const m=String(e?.message||e?.details||e||"");
+  return /fetch|network|load failed|timeout|cors/i.test(m) || +e?.status>=500 || e?.code==="PGRST000";
+}
+function updateNet(){
+  const el=$("#net");
+  el.hidden = !(NET.offline || ((NET.channelDown||NET.fetchFail) && S.code));
+  el.textContent = NET.offline ? "通信が切れています。再接続中…" : NET.fetchFail ? SERVER_DOWN : "通信が切れています。再接続中…";
+}
 addEventListener("offline",()=>{ NET.offline=true; updateNet(); });
 addEventListener("online",()=>{ NET.offline=false; updateNet(); if(S.code){ subscribe(S.code); fetchAll(); } });
 
@@ -425,11 +436,14 @@ function joinNames(ids){ return ids.map(id=>`${esc(nameOf(id))}さん`).join("�
 /* ---------- 通信 ---------- */
 /* 読み込みが重なったときは、最後に始めたものの結果だけを使う
    （先に始めた読み込みが後から届いて、古い画面に戻るのを防ぐ） */
-let fetchSeq=0, fetchLatest=null;
+let fetchSeq=0, fetchLatest=null, lastOkAt=0;
 function fetchAll(){ const p=fetchOnce(++fetchSeq); fetchLatest=p; return p; }
 async function fetchOnce(seq){
   const code=S.code; if(!code) return;
   let r,p,c,k,m,g,f;
+  // 8秒たっても返事がなければ、休止中かもしれないと案内する（サーバー側は何度かやり直すので時間がかかる）
+  const started=Date.now();
+  const slowT=setTimeout(()=>{ if(lastOkAt<started && code===S.code && navigator.onLine){ NET.fetchFail=true; updateNet(); } },8000);
   try{
     [r,p,c,k,m,g,f] = await Promise.all([
       sb.from("rooms").select("*").eq("code",code).maybeSingle(),
@@ -440,12 +454,16 @@ async function fetchOnce(seq){
       sb.from("guesses").select("*").eq("room_code",code),
       sb.from("favs").select("*").eq("room_code",code),
     ]);
-  }catch(e){ if(seq!==fetchSeq) return fetchLatest; NET.fetchFail=true; updateNet(); return; }
+  }catch(e){ clearTimeout(slowT); if(seq!==fetchSeq) return fetchLatest; NET.fetchFail=true; updateNet(); return; }
+  clearTimeout(slowT);
+  const err=r.error||p.error||c.error||k.error||m.error||g.error||f.error;
+  // 失敗した結果は、新しい読み込みに追い越されていても「つながらない」の案内に使う
+  if(err && code===S.code && lastOkAt<started && navigator.onLine){ NET.fetchFail=true; updateNet(); }
   if(seq!==fetchSeq) return fetchLatest;
   if(code!==S.code) return;
-  const err=r.error||p.error||c.error||k.error||m.error||g.error||f.error;
   NET.fetchFail=!!err; updateNet();
   if(err){ console.warn(err); return; }
+  lastOkAt=Date.now();
   if(!r.data){ leaveRoom(true); toast("部屋が見つかりません"); return; }
   // 局が変わったら、前の局の枠・選択中の札を全員の画面で空にする
   if(S.room && S.room.game!==r.data.game){ S.compose={}; S.form=null; S.selCard=null; S.lastMain=""; }
@@ -503,8 +521,9 @@ function leaveRoom(silent){
 /* ---------- 操作 ---------- */
 async function guard(fn){
   if(S.busy) return; S.busy=true;
-  try{ await fn(); } catch(e){ console.error(e); toast(e.message||"エラーが発生しました"); }
-  finally{ S.busy=false; }
+  const slow=setTimeout(()=>{ if(navigator.onLine) toast("サーバーの返事を待っています… 長く続くときは休止中かもしれません（作った人に連絡を）"); },6000);
+  try{ await fn(); } catch(e){ console.error(e); if(serverDown(e)){ setErr(SERVER_DOWN); toast(SERVER_DOWN); } else toast(e.message||"エラーが発生しました"); }
+  finally{ clearTimeout(slow); S.busy=false; }
 }
 const ALPHA="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function genCode(){ let s=""; const a=crypto.getRandomValues(new Uint8Array(4)); for(const b of a) s+=ALPHA[b%ALPHA.length]; return s; }
@@ -521,7 +540,7 @@ const actions = {
       code=genCode();
       const {error}=await sb.from("rooms").insert({code, host_id:me});
       if(!error) break;
-      if(i===4) throw error;
+      if(error.code!=="23505" || i===4) throw error; // 23505＝部屋コードがかぶった（作り直す）。それ以外はすぐ知らせる
     }
     const {error}=await sb.from("players").insert({id:me, room_code:code, name});
     if(error) throw error;
@@ -531,7 +550,8 @@ const actions = {
     const name=$("#name").value.trim();
     const code=($("#code").value||"").trim().toUpperCase();
     if(!/^[A-Z0-9]{4}$/.test(code)) return setErr("部屋コードは4文字です");
-    const {data:room}=await sb.from("rooms").select("*").eq("code",code).maybeSingle();
+    const {data:room, error:roomErr}=await sb.from("rooms").select("*").eq("code",code).maybeSingle();
+    if(roomErr) throw roomErr;
     if(!room) return setErr("その部屋は見つかりません");
     const saved=LS.get("waka:me:"+code);
     if(saved){
@@ -1194,7 +1214,8 @@ document.addEventListener("click",e=>{
   if(e.target.id==="imgm"){ $("#imgm").hidden=true; return; }
   const el=e.target.closest("[data-a]"); if(!el || el.disabled) return;
   const fn=actions[el.dataset.a]; if(!fn) return;
-  if(fn===actions.guess || fn===actions.decoy){ Promise.resolve(fn(el)).catch(err=>{ console.error(err); toast("送れませんでした。もう一度どうぞ"); }); return; }
+  // 共有の画面は相手の操作待ちで長く開くので、「サーバー待ち」の案内を出さないよう別扱い
+  if(fn===actions.guess || fn===actions.decoy || fn===actions.imgShare || fn===actions.imgDownload || fn===actions.imgClose){ Promise.resolve(fn(el)).catch(err=>{ console.error(err); toast("送れませんでした。もう一度どうぞ"); }); return; }
   guard(()=>fn(el));
 });
 let fitT=null;

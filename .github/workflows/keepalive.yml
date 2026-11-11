@@ -1,12 +1,19 @@
 # Supabase の無料プランは、1週間ほど使われないと一時停止する。
 # 3日に1回、部屋の一覧を1件だけ読みに行って「使われている」状態を保つ（データは変えない）。
 # 鍵はゲームのページにも入っている公開用のもの。
+#
+# GitHub は、リポジトリが60日間更新されないと、この自動実行を止めてしまう。
+# それを防ぐため、毎月1日に .github/keepalive.txt へ日付を書いて更新する。
 name: Supabase keepalive
 
 on:
   schedule:
     - cron: "17 3 */3 * *"   # 3日おき 3:17（UTC）＝日本時間 12:17
+    - cron: "29 4 1 * *"     # 毎月1日 4:29（UTC）＝リポジトリの更新用
   workflow_dispatch:          # 手動でも実行できる
+
+permissions:
+  contents: write
 
 jobs:
   ping:
@@ -23,3 +30,18 @@ jobs:
             "$SUPABASE_URL/rest/v1/rooms?select=code&limit=1")
           echo "HTTP $code"
           test "$code" = "200"
+
+  touch-repo:
+    if: github.event.schedule == '29 4 1 * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write today's date
+        run: |
+          date -u +"%Y-%m-%d" > .github/keepalive.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive.txt
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "keepalive: $(date -u +%Y-%m-%d)"
+          git push
