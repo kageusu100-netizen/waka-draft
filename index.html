@@ -301,7 +301,8 @@ function phase(){
   const n=seats().length, P=packSize();
   if(submittedSet().size < n) return "writing";
   if(gPicks().length < n*P) return "drafting";
-  if(gPoems().length < n) return "composing";
+  // 首数ではなく「何人が出したか」で数える（万一同じ人の歌が2首入っても公開が早まらないように）
+  if(new Set(gPoems().map(p=>p.player_id)).size < n) return "composing";
   return "reveal";
 }
 function isHost(){
@@ -320,7 +321,11 @@ function myHand(){
 function joinNames(ids){ return ids.map(id=>`${esc(nameOf(id))}さん`).join("、"); }
 
 /* ---------- 通信 ---------- */
-async function fetchAll(){
+/* 読み込みが重なったときは、最後に始めたものの結果だけを使う
+   （先に始めた読み込みが後から届いて、古い画面に戻るのを防ぐ） */
+let fetchSeq=0, fetchLatest=null;
+function fetchAll(){ const p=fetchOnce(++fetchSeq); fetchLatest=p; return p; }
+async function fetchOnce(seq){
   const code=S.code; if(!code) return;
   let r,p,c,k,m;
   try{
@@ -331,12 +336,15 @@ async function fetchAll(){
       sb.from("picks").select("*").eq("room_code",code),
       sb.from("poems").select("*").eq("room_code",code),
     ]);
-  }catch(e){ NET.fetchFail=true; updateNet(); return; }
+  }catch(e){ if(seq!==fetchSeq) return fetchLatest; NET.fetchFail=true; updateNet(); return; }
+  if(seq!==fetchSeq) return fetchLatest;
   if(code!==S.code) return;
   const err=r.error||p.error||c.error||k.error||m.error;
   NET.fetchFail=!!err; updateNet();
   if(err){ console.warn(err); return; }
   if(!r.data){ leaveRoom(true); toast("部屋が見つかりません"); return; }
+  // 局が変わったら、前の局の枠・選択中の札を全員の画面で空にする
+  if(S.room && S.room.game!==r.data.game){ S.compose={}; S.form=null; S.selCard=null; S.lastMain=""; }
   S.room=r.data; S.players=p.data; S.cards=c.data; S.picks=k.data; S.poems=m.data;
   if(!S.players.some(x=>x.id===S.me) && S.view==="room"){ toast("部屋から外れました"); leaveRoom(true); return; }
   render();
@@ -453,7 +461,7 @@ const actions = {
   async setMode(el){
     if(!isHost()) return;
     await sb.from("rooms").update({mode:el.dataset.mode}).eq("code",S.code).eq("status","lobby");
-    scheduleRefresh();
+    await fetchAll();
   },
   async move(el){
     const ps=[...S.players].sort((a,b)=>a.ord-b.ord);
@@ -462,18 +470,18 @@ const actions = {
     const a=ps[i], b=ps[j];
     await sb.from("players").update({ord:b.ord}).eq("id",a.id);
     await sb.from("players").update({ord:a.ord}).eq("id",b.id);
-    scheduleRefresh();
+    await fetchAll();
   },
   async shuffle(){
     const ps=[...S.players]; const ords=ps.map(p=>p.ord);
     for(let i=ps.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [ps[i],ps[j]]=[ps[j],ps[i]]; }
     await Promise.all(ps.map((p,i)=>sb.from("players").update({ord:ords[i]}).eq("id",p.id)));
-    scheduleRefresh();
+    await fetchAll();
   },
   async kick(el){
     if(!confirm(`${nameOf(el.dataset.id)} さんを外しますか？`)) return;
     await sb.from("players").delete().eq("id",el.dataset.id);
-    scheduleRefresh();
+    await fetchAll();
   },
   async start(){
     const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
@@ -481,9 +489,10 @@ const actions = {
     if(ids.length===2 && !confirm("2人だとパックを交換し合うだけになります。3人以上がおすすめですが、始めますか？")) return;
     const {error}=await sb.from("rooms").update({status:"playing", seats:ids, reveal:-1}).eq("code",S.code).eq("status","lobby");
     if(error) throw error;
-    scheduleRefresh();
+    await fetchAll();
   },
   async submitPack(){
+    if(submittedSet().has(S.me)) return fetchAll();
     const rows=[];
     const vals=readPackInputs();
     for(let i=0;i<vals.length;i++){
@@ -495,22 +504,27 @@ const actions = {
     const {error}=await sb.from("cards").insert(rows);
     if(error) throw error;
     LS.del(draftKey());
-    scheduleRefresh();
+    await fetchAll();
   },
   async editPack(){
+    // 押す直前に最新の状態を確かめる（ドラフトが始まった後に消すと、取られた札まで消えてしまう）
+    await fetchAll();
+    if(phase()!=="writing") return toast("ドラフトが始まったので、書き直せません");
     const mine=gCards().filter(c=>c.origin===S.me).sort((a,b)=>a.slot-b.slot);
     LS.set(draftKey(), JSON.stringify(mine.map(c=>c.text)));
     await sb.from("cards").delete().eq("room_code",S.code).eq("game",game()).eq("origin",S.me);
-    S.lastMain=""; scheduleRefresh();
+    S.lastMain=""; await fetchAll();
   },
   pickSel(el){ S.selCard=el.dataset.id; S.lastMain=""; render(); },
   async pick(){
     if(!S.selCard) return;
-    const r=myHand().length;
+    const st=draftState();
+    if(!st.ready || !st.pack.some(c=>c.id===S.selCard)){ S.selCard=null; S.lastMain=""; return fetchAll(); }
+    const r=st.r;
     const {error}=await sb.from("picks").insert({room_code:S.code, game:game(), player_id:S.me, round:r, card_id:S.selCard});
     S.selCard=null; S.lastMain="";
     if(error){ toast("選べませんでした。もう一度どうぞ"); }
-    scheduleRefresh();
+    await fetchAll();
   },
   setForm(el){ S.form=el.dataset.form; S.compose={}; S.lastMain=""; render(); },
   place(el){
@@ -544,33 +558,39 @@ const actions = {
       lines=lines.map(l=>l||"……");
     }
     if(lines.some(l=>!l)) return toast("すべての枠を埋めてください");
+    // 枠の札が今の手札にあるか確かめる（前の局の札が残っていた場合などに備えて）
+    const handIds=new Set(myHand().map(c=>c.id));
+    if(Object.values(S.compose).some(id=>!handIds.has(id))){ S.compose={}; S.lastMain=""; render(); return toast("手札が変わったので、枠を空にしました。もう一度組んでください"); }
+    if(gPoems().some(p=>p.player_id===S.me)) return fetchAll();
     const {error}=await sb.from("poems").insert({room_code:S.code, game:game(), player_id:S.me, form:f, lines});
     if(error) throw error;
-    scheduleRefresh();
+    await fetchAll();
   },
   async unsubmitPoem(){
+    await fetchAll();
+    if(phase()!=="composing") return toast("公開が始まったので、取り下げられません");
     await sb.from("poems").delete().eq("room_code",S.code).eq("game",game()).eq("player_id",S.me);
-    S.lastMain=""; scheduleRefresh();
+    S.lastMain=""; await fetchAll();
   },
   /* 公開の進み方（rooms.reveal）
      -1 = 準備完了 / 偶数 2i = i首目の歌だけ表示 / 奇数 2i+1 = i首目の詠み人も表示 / 2n = 今局の歌一覧 */
   async revealNext(){
     const cur=S.room.reveal;
     await sb.from("rooms").update({reveal:cur+1}).eq("code",S.code).eq("reveal",cur).eq("game",game());
-    scheduleRefresh();
+    await fetchAll();
   },
   async nextGame(){
     if(!confirm("同じメンバーでもう一局始めますか？")) return;
     const g=game();
     const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
     await sb.from("rooms").update({game:g+1, reveal:-1, seats:ids}).eq("code",S.code).eq("game",g);
-    S.compose={}; S.form=null; S.selCard=null; scheduleRefresh();
+    S.compose={}; S.form=null; S.selCard=null; await fetchAll();
   },
   async toLobby(){
     if(!confirm("待合室に戻りますか？（メンバーの入れ替えや形式の変更ができます）")) return;
     const g=game();
     await sb.from("rooms").update({status:"lobby", game:g+1, reveal:-1}).eq("code",S.code).eq("game",g);
-    S.compose={}; S.form=null; scheduleRefresh();
+    S.compose={}; S.form=null; await fetchAll();
   },
 };
 function setErr(m){ const e=$("#err"); if(e) e.textContent=m; }
@@ -854,7 +874,7 @@ document.addEventListener("click",e=>{
   guard(()=>fn(el));
 });
 document.addEventListener("keydown",e=>{
-  if(e.key==="Enter" && e.target.id==="code") guard(()=>actions.join());
+  if(e.key==="Enter" && !e.isComposing && e.keyCode!==229 && e.target.id==="code") guard(()=>actions.join());
 });
 
 /* ---------- 起動 ---------- */
