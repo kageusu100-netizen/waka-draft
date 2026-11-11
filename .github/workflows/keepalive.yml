@@ -1,0 +1,25 @@
+# Supabase の無料プランは、1週間ほど使われないと一時停止する。
+# 3日に1回、部屋の一覧を1件だけ読みに行って「使われている」状態を保つ（データは変えない）。
+# 鍵はゲームのページにも入っている公開用のもの。
+name: Supabase keepalive
+
+on:
+  schedule:
+    - cron: "17 3 */3 * *"   # 3日おき 3:17（UTC）＝日本時間 12:17
+  workflow_dispatch:          # 手動でも実行できる
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one room
+        env:
+          SUPABASE_URL: https://sgylbahmregnpzylsbtf.supabase.co
+          SUPABASE_KEY: sb_publishable_-fD7ys_YTYLvJPdXWGCbCg_vNKYbaZg
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/rooms?select=code&limit=1")
+          echo "HTTP $code"
+          test "$code" = "200"
