@@ -188,6 +188,67 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px;font-weight:700;
 .center{text-align:center}
 .muted{color:var(--ink3)}
 .hint{font-size:13px;color:var(--ink2);border-left:3px solid var(--kin);padding:2px 0 2px 10px;margin:8px 0}
+/* お題 */
+.theme{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--paper);border:1px solid var(--kin);box-shadow:0 0 0 3px rgba(168,132,63,.12)}
+.theme .lb{font-size:12px;font-weight:700;color:var(--kin);letter-spacing:.2em}
+.theme b{font-family:var(--mincho);font-weight:800;font-size:24px;letter-spacing:.08em}
+.theme.pop{animation:pop .9s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{0%{opacity:0;transform:scale(.6) rotate(-3deg)}60%{opacity:1}100%{opacity:1;transform:none}}
+.shikishi .theme-s{position:absolute;left:14px;top:10px;font-size:12px;color:var(--kin);font-weight:700;letter-spacing:.1em;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 句の書き手（縦書きの各行の下に小さく） */
+.tate.withau{padding-bottom:64px}
+.tate.withau span{position:relative}
+.tate small.au{position:absolute;top:100%;left:0;right:0;margin-top:8px;max-height:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--gothic);font-size:11px;font-weight:500;line-height:1;color:var(--ink3);letter-spacing:0;text-align:start}
+.tate small.au.in{animation:fade .6s 1.1s ease both}
+.shikishi.compact{max-height:54vh}
+.shikishi.flip{animation:flip .8s cubic-bezier(.2,.8,.3,1) both}
+@keyframes flip{from{opacity:0;transform:perspective(900px) rotateY(-75deg) scale(.92)}to{opacity:1;transform:none}}
+/* 詠み人当て */
+.guess{margin-top:4px}
+.guess .q{font-size:14px;font-weight:700;color:var(--ink2);margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.gbtns{display:flex;flex-wrap:wrap;gap:6px}
+.gbtn{min-height:44px;padding:6px 14px;border-radius:99px;border:1px solid var(--line);background:var(--paper);font-weight:700;cursor:pointer;transition:transform .1s}
+.gbtn:active{transform:scale(.96)}
+.gbtn.on{background:var(--shu-btn);border-color:var(--shu-btn);color:#fff}
+.result{text-align:center;margin:6px 0 4px;font-size:14px}
+.result b{color:var(--shu);font-family:var(--mincho);font-size:17px}
+.result .miss{color:var(--ink3);font-size:13px;display:block;margin-top:2px}
+.result.in{animation:fade .5s .7s ease both}
+/* 称号・好きな歌 */
+.awards{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0 6px}
+.award{font-size:13px;padding:4px 10px;border-radius:99px;border:1px solid var(--kin);background:var(--paper);animation:fade .5s ease both}
+.award b{font-family:var(--mincho);color:var(--kin);margin-right:6px;letter-spacing:.08em}
+.mini{position:relative;aspect-ratio:auto}
+.mini .tate{height:170px;flex:none}
+.mini .acts{display:flex;gap:6px;margin-top:6px}
+.mini .acts button{flex:1;min-height:40px;border-radius:8px;border:1px solid var(--line);background:var(--paper);font-size:13px;font-weight:700;cursor:pointer;color:var(--ink2)}
+.mini .acts button.on{background:var(--shu-soft);border-color:var(--shu);color:var(--shu)}
+.mini .acts button:disabled{opacity:.35;cursor:default}
+.mini.meika{box-shadow:0 0 0 3px var(--kin),0 0 0 6px rgba(201,163,90,.3),0 10px 24px -12px rgba(168,132,63,.8)}
+.mini.meika::after{content:"名歌";position:absolute;top:-9px;left:-7px;background:var(--kin);color:#fff;font-family:var(--mincho);font-weight:800;font-size:13px;padding:2px 7px;border-radius:4px;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(0,0,0,.25);animation:stamp .5s cubic-bezier(.2,1.6,.4,1) both}
+.gallery{padding-top:12px}
+/* 札の動き */
+.cards.deal .card{animation:deal .45s cubic-bezier(.2,.9,.3,1) both}
+@keyframes deal{from{opacity:0;transform:translateX(48px) rotate(5deg)}to{opacity:1;transform:none}}
+.card.taken{animation:taken .32s ease-in forwards}
+@keyframes taken{to{opacity:0;transform:translateY(46px) scale(.85)}}
+.round .big.pop{display:inline-block;animation:pop .7s cubic-bezier(.2,1.4,.4,1) both}
+#app.enter{animation:fade .45s ease}
+.btn.primary.ready{animation:glow 1.8s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 6px rgba(196,64,44,.2),0 4px 14px -8px rgba(160,40,20,.6)}}
+.plist li.join{animation:fade .5s ease both}
+.allin{animation:pop .8s cubic-bezier(.2,1.4,.4,1) both}
+/* 花びら */
+.petals{position:fixed;inset:0;pointer-events:none;z-index:8;overflow:hidden}
+.petals i{position:absolute;top:-24px;width:12px;height:9px;border-radius:12px 0 12px 0;opacity:.9;animation:petal linear forwards}
+@keyframes petal{to{transform:translate(var(--dx),110vh) rotate(var(--rot));opacity:.15}}
+/* 画像の保存 */
+.imgm{position:fixed;inset:0;z-index:11;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px}
+.imgm[hidden]{display:none}
+.imgbox{background:var(--paper);border-radius:14px;padding:14px;max-width:420px;width:100%;text-align:center;animation:fade .3s ease}
+.imgbox img{width:100%;max-height:62vh;object-fit:contain;border-radius:4px;display:block;margin:0 auto 8px;box-shadow:0 6px 20px -10px rgba(0,0,0,.5)}
+.imgbox .row{justify-content:center}
+.imgbox .row>*{flex:none}
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms!important;animation-delay:0s!important} }
 </style>
 </head>
@@ -198,6 +259,7 @@ details summary{cursor:pointer;color:var(--ink2);font-size:14px;font-weight:700;
   <main id="app"></main>
 </div>
 <div id="toast" class="toast" hidden></div>
+<div id="imgm" class="imgm" hidden><div class="imgbox"><img id="imgm-img" alt="色紙の画像"><p class="sub" style="margin:0 0 8px">画像を長押しすると写真に保存できます</p><div class="row"><button class="btn small primary" data-a="imgShare" id="imgm-share">共有する</button><button class="btn small" data-a="imgDownload">ダウンロード</button></div><button class="btn small ghost" data-a="imgClose" style="margin:8px auto 0">閉じる</button></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
@@ -226,7 +288,7 @@ const S = {
   view:"home", code:null, me:null,
   room:null, players:[], cards:[], picks:[], poems:[],
   channel:null, selCard:null, compose:{}, form:null, lastMain:"", busy:false,
-  lastPhase:null, attnKey:null,
+  lastPhase:null, attnKey:null, guesses:[], favs:[], img:null,
 };
 const $ = (s, el=document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -318,6 +380,30 @@ function myHand(){
   const ids=gPicks().filter(p=>p.player_id===S.me).sort((a,b)=>a.round-b.round).map(p=>p.card_id);
   return ids.map(id=>S.cards.find(c=>c.id===id)).filter(Boolean);
 }
+function gGuesses(){ return S.guesses.filter(g=>g.game===game()); }
+function gFavs(){ return S.favs.filter(f=>f.game===game()); }
+const THEMES=["月曜日","推し","年末","締め切り","給料日","二度寝","猫","雨の日","夏休み","旅","初恋","ラーメン","満員電車","片思い","宝くじ","卒業","夜更かし","ダイエット","誕生日","迷子","青春","宇宙","秋の夜長","雪","コンビニ","忘れ物","寝坊","お正月","未来の自分","筋肉痛","休日","花火","引っ越し","スマホ","実家","嘘","魔法","最終回","カレー","ゾンビ"];
+function pickTheme(){ return THEMES[Math.floor(Math.random()*THEMES.length)]; }
+/* 一度きりの演出：初めて見えてから ms ミリ秒の間だけ true。
+   期限が過ぎたあとに描き直しても、動きは繰り返さない */
+const SEEN={};
+function fresh(key, ms){ const now=Date.now(); if(!(key in SEEN)) SEEN[key]=now; return now-SEEN[key]<ms; }
+const ONCE=new Set();
+function once(key, fn){ if(!ONCE.has(key)){ ONCE.add(key); fn(); } }
+const calm=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+function spawnPetals(){
+  if(calm()) return;
+  const box=document.createElement("div"); box.className="petals";
+  const cols=["#f2b8c0","#f6d0d6","#e9a3ad","#f3c98b"];
+  for(let i=0;i<20;i++){
+    const e=document.createElement("i");
+    e.style.left=(Math.random()*100)+"%"; e.style.background=cols[i%cols.length];
+    e.style.setProperty("--dx",(Math.random()*140-70)+"px"); e.style.setProperty("--rot",(Math.random()*720-360)+"deg");
+    e.style.animationDuration=(3+Math.random()*2.5)+"s"; e.style.animationDelay=(Math.random()*1.2)+"s";
+    box.appendChild(e);
+  }
+  document.body.appendChild(box); setTimeout(()=>box.remove(),7500);
+}
 function joinNames(ids){ return ids.map(id=>`${esc(nameOf(id))}さん`).join("、"); }
 
 /* ---------- 通信 ---------- */
@@ -327,25 +413,27 @@ let fetchSeq=0, fetchLatest=null;
 function fetchAll(){ const p=fetchOnce(++fetchSeq); fetchLatest=p; return p; }
 async function fetchOnce(seq){
   const code=S.code; if(!code) return;
-  let r,p,c,k,m;
+  let r,p,c,k,m,g,f;
   try{
-    [r,p,c,k,m] = await Promise.all([
+    [r,p,c,k,m,g,f] = await Promise.all([
       sb.from("rooms").select("*").eq("code",code).maybeSingle(),
       sb.from("players").select("*").eq("room_code",code).order("ord"),
       sb.from("cards").select("*").eq("room_code",code),
       sb.from("picks").select("*").eq("room_code",code),
       sb.from("poems").select("*").eq("room_code",code),
+      sb.from("guesses").select("*").eq("room_code",code),
+      sb.from("favs").select("*").eq("room_code",code),
     ]);
   }catch(e){ if(seq!==fetchSeq) return fetchLatest; NET.fetchFail=true; updateNet(); return; }
   if(seq!==fetchSeq) return fetchLatest;
   if(code!==S.code) return;
-  const err=r.error||p.error||c.error||k.error||m.error;
+  const err=r.error||p.error||c.error||k.error||m.error||g.error||f.error;
   NET.fetchFail=!!err; updateNet();
   if(err){ console.warn(err); return; }
   if(!r.data){ leaveRoom(true); toast("部屋が見つかりません"); return; }
   // 局が変わったら、前の局の枠・選択中の札を全員の画面で空にする
   if(S.room && S.room.game!==r.data.game){ S.compose={}; S.form=null; S.selCard=null; S.lastMain=""; }
-  S.room=r.data; S.players=p.data; S.cards=c.data; S.picks=k.data; S.poems=m.data;
+  S.room=r.data; S.players=p.data; S.cards=c.data; S.picks=k.data; S.poems=m.data; S.guesses=g.data; S.favs=f.data;
   if(!S.players.some(x=>x.id===S.me) && S.view==="room"){ toast("部屋から外れました"); leaveRoom(true); return; }
   render();
 }
@@ -355,7 +443,7 @@ function subscribe(code){
   if(S.channel) sb.removeChannel(S.channel);
   const ch=sb.channel("room-"+code+"-"+Math.random().toString(36).slice(2,7));
   ch.on("postgres_changes",{event:"*",schema:"public",table:"rooms",filter:`code=eq.${code}`},scheduleRefresh);
-  for(const t of ["players","cards","picks","poems"])
+  for(const t of ["players","cards","picks","poems","guesses","favs"])
     ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:`room_code=eq.${code}`},scheduleRefresh);
   // 削除の通知は部屋で絞り込めないため、全部屋分が届く。
   // 手元にある札・歌・参加者が消えたときだけ読み直す（よその部屋の削除で重くならないように）
@@ -387,7 +475,7 @@ function leaveRoom(silent){
   if(S.code) LS.del("waka:room");
   try{ wakeLock?.release(); }catch{} wakeLock=null;
   NET.channelDown=false; NET.fetchFail=false;
-  Object.assign(S,{view:"home",code:null,room:null,players:[],cards:[],picks:[],poems:[],channel:null,lastMain:""});
+  Object.assign(S,{view:"home",code:null,room:null,players:[],cards:[],picks:[],poems:[],guesses:[],favs:[],channel:null,lastMain:""});
   const u=new URL(location.href); u.searchParams.delete("room"); history.replaceState(null,"",u);
   updateNet(); render();
 }
@@ -458,6 +546,30 @@ const actions = {
     if(navigator.share){ try{ await navigator.share({title:"和歌ドラフト", text:`部屋コード ${S.code}`, url}); }catch{} }
     else { await navigator.clipboard?.writeText(url); toast("URLをコピーしました"); }
   },
+  async setTheme(el){
+    if(!isHost()) return;
+    await sb.from("rooms").update({theme_on:el.dataset.on==="1"}).eq("code",S.code).eq("status","lobby");
+    await fetchAll();
+  },
+  async guess(el){
+    if(S.room.reveal<0 || S.room.reveal%2!==0) return;
+    const {error}=await sb.from("guesses").upsert({room_code:S.code, game:game(), voter_id:S.me, poem_player:el.dataset.poem, guess:el.dataset.id});
+    if(error) throw error;
+    await fetchAll();
+  },
+  async fav(el){
+    if(el.dataset.pid===S.me) return;
+    const {error}=await sb.from("favs").upsert({room_code:S.code, game:game(), voter_id:S.me, poem_player:el.dataset.pid});
+    if(error) throw error;
+    await fetchAll();
+  },
+  async saveImg(el){ const p=gPoems().find(x=>x.player_id===el.dataset.pid); if(p) await savePoemImage(p); },
+  async imgShare(){
+    if(!S.img) return;
+    try{ await navigator.share({files:[new File([S.img.blob],S.img.name,{type:"image/png"})], title:"和歌ドラフト"}); }catch{}
+  },
+  imgDownload(){ if(!S.img) return; const a=document.createElement("a"); a.href=S.img.url; a.download=S.img.name; document.body.appendChild(a); a.click(); a.remove(); },
+  imgClose(){ $("#imgm").hidden=true; },
   async setMode(el){
     if(!isHost()) return;
     await sb.from("rooms").update({mode:el.dataset.mode}).eq("code",S.code).eq("status","lobby");
@@ -487,7 +599,7 @@ const actions = {
     const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
     if(ids.length<2 && !confirm("1人で始めますか？（動作確認用）")) return;
     if(ids.length===2 && !confirm("2人だとパックを交換し合うだけになります。3人以上がおすすめですが、始めますか？")) return;
-    const {error}=await sb.from("rooms").update({status:"playing", seats:ids, reveal:-1}).eq("code",S.code).eq("status","lobby");
+    const {error}=await sb.from("rooms").update({status:"playing", seats:ids, reveal:-1, theme:S.room.theme_on?pickTheme():null}).eq("code",S.code).eq("status","lobby");
     if(error) throw error;
     await fetchAll();
   },
@@ -521,6 +633,9 @@ const actions = {
     const st=draftState();
     if(!st.ready || !st.pack.some(c=>c.id===S.selCard)){ S.selCard=null; S.lastMain=""; return fetchAll(); }
     const r=st.r;
+    // 取った札が手札へ飛んでいく動き
+    const picked=document.querySelector(".card.sel");
+    if(picked && !calm()){ picked.classList.add("taken"); await new Promise(res=>setTimeout(res,300)); }
     const {error}=await sb.from("picks").insert({room_code:S.code, game:game(), player_id:S.me, round:r, card_id:S.selCard});
     S.selCard=null; S.lastMain="";
     if(error){ toast("選べませんでした。もう一度どうぞ"); }
@@ -562,7 +677,7 @@ const actions = {
     const handIds=new Set(myHand().map(c=>c.id));
     if(Object.values(S.compose).some(id=>!handIds.has(id))){ S.compose={}; S.lastMain=""; render(); return toast("手札が変わったので、枠を空にしました。もう一度組んでください"); }
     if(gPoems().some(p=>p.player_id===S.me)) return fetchAll();
-    const {error}=await sb.from("poems").insert({room_code:S.code, game:game(), player_id:S.me, form:f, lines});
+    const {error}=await sb.from("poems").insert({room_code:S.code, game:game(), player_id:S.me, form:f, lines, card_ids:pat.map((_,i)=>S.compose[i]||null)});
     if(error && error.code!=="23505") throw error; // 23505＝すでに提出済み（二重送信）。読み直すだけでよい
     await fetchAll();
   },
@@ -583,13 +698,13 @@ const actions = {
     if(!confirm("同じメンバーでもう一局始めますか？")) return;
     const g=game();
     const ids=[...S.players].sort((a,b)=>a.ord-b.ord).map(p=>p.id);
-    await sb.from("rooms").update({game:g+1, reveal:-1, seats:ids}).eq("code",S.code).eq("game",g);
+    await sb.from("rooms").update({game:g+1, reveal:-1, seats:ids, theme:S.room.theme_on?pickTheme():null}).eq("code",S.code).eq("game",g);
     S.compose={}; S.form=null; S.selCard=null; await fetchAll();
   },
   async toLobby(){
     if(!confirm("待合室に戻りますか？（メンバーの入れ替えや形式の変更ができます）")) return;
     const g=game();
-    await sb.from("rooms").update({status:"lobby", game:g+1, reveal:-1}).eq("code",S.code).eq("game",g);
+    await sb.from("rooms").update({status:"lobby", game:g+1, reveal:-1, theme:null}).eq("code",S.code).eq("game",g);
     S.compose={}; S.form=null; await fetchAll();
   },
 };
@@ -613,13 +728,15 @@ function render(){
     html = ({lobby:vLobby, writing:vWriting, drafting:vDrafting, composing:vComposing, reveal:vReveal})[ph]();
   }
   // 画面が切り替わったら、前の画面の通知は消す
-  if(ph!==S.lastPhase){ if(S.lastPhase) hideToast(); S.lastPhase=ph; }
+  if(ph!==S.lastPhase){ if(S.lastPhase) hideToast(); S.lastPhase=ph; S.enter=true; }
   attention(ph);
   // 入力欄がある画面では、内容が変わった時だけ書き換える（入力中の文字を消さないため）
   const [main, status=""] = html.split("<!--STATUS-->");
   if(main!==S.lastMain){
     app.innerHTML = main + `<div id="status">${status}</div>`;
     S.lastMain=main;
+    // 場面が変わったときだけ、ふわっと表示
+    if(S.enter){ app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter"); S.enter=false; }
     afterRender();
   } else {
     const st=$("#status"); if(st && st.innerHTML!==status) st.innerHTML=status;
@@ -662,6 +779,16 @@ function afterRender(){
     inp.addEventListener("input",()=>{ upd(); LS.set(draftKey(), JSON.stringify(readPackInputs().map(v=>v.text))); });
   });
   const ni=$("#name"); if(ni && !ni.value) ni.value=LS.get("waka:name")||"";
+  fitTate();
+}
+/* 色紙の縦書きが列に収まらず折り返すときは、収まるまで文字を小さくする */
+function fitTate(){
+  document.querySelectorAll(".shikishi .tate, .mini .tate").forEach(el=>{
+    const n=el.children.length; if(!n) return;
+    const mini=!!el.closest(".mini"), lh=mini?1.7:1.8, min=mini?9:14;
+    let fs=mini?15:28; el.style.fontSize="";
+    while(fs>min && el.scrollWidth > n*fs*lh+4){ fs-=1; el.style.fontSize=fs+"px"; }
+  });
 }
 
 function vHome(){
@@ -714,9 +841,12 @@ function vLobby(){
   <h3>形式</h3>
   <div class="seg">${Object.entries(MODES).map(([k,v])=>`<button data-a="setMode" data-mode="${k}" class="${S.room.mode===k?"on":""}" ${host?"":"disabled"}>${v.label}</button>`).join("")}</div>
   <p class="sub" style="margin-top:6px">${esc(m.desc)}</p>
+  <h3>お題</h3>
+  <div class="seg">${[["0","なし"],["1","あり"]].map(([v,l])=>`<button data-a="setTheme" data-on="${v}" class="${(S.room.theme_on?"1":"0")===v?"on":""}" ${host?"":"disabled"}>${l}</button>`).join("")}</div>
+  <p class="sub" style="margin-top:6px">${S.room.theme_on?"歌を組む直前にお題を発表。パックはお題を知らずに書くので、こじつけ勝負になります。":"お題なしで自由に詠みます。"}</p>
   <h3>参加者 ${ps.length}人 <span class="muted" style="font-weight:400">— この順にパックが回ります</span></h3>
   <div class="panel" style="padding:4px 12px">
-    <ul class="plist">${ps.map((p,i)=>`<li>
+    <ul class="plist">${ps.map((p,i)=>`<li class="${fresh("pl"+p.id,1200)?"join":""}">
       <span class="num">${i+1}</span><span class="nm">${esc(p.name)}</span>
       ${p.id===S.me?`<span class="tag me">あなた</span>`:""}${p.id===S.room.host_id?`<span class="tag">親</span>`:""}
       ${host?`<button class="iconbtn" data-a="move" data-id="${p.id}" data-dir="-1" ${i===0?"disabled":""} aria-label="上へ">↑</button><button class="iconbtn" data-a="move" data-id="${p.id}" data-dir="1" ${i===ps.length-1?"disabled":""} aria-label="下へ">↓</button>${p.id!==S.me?`<button class="iconbtn" data-a="kick" data-id="${p.id}" aria-label="外す">×</button>`:""}`:""}
@@ -753,6 +883,7 @@ function vWriting(){
   const ph5=["夜明けまで","カレー食う","さようなら","星空に","鬼瓦"], ph7=["願いを込めて","蛙飛び込む","札束の海","締め切りは明日","全部夢だった"];
   return `<h2>パックを作る</h2>
   <p class="sub">五音${m.n5}つ・七音${m.n7}つ。和歌っぽくなくて大丈夫。流行語、昨日の夕飯、何でも。</p>
+  ${S.room.theme_on?`<div class="hint">お題ありの局です。お題は歌を組むときに発表されるので、今は気にせず書いてOK。</div>`:""}
   <div class="panel">
     ${packSlots().map((len,i)=>`<div class="phr"><span class="k k${len}">${KANSUJI[len]}</span><input id="ph${i}" class="t" data-len="${len}" maxlength="40" placeholder="${esc((len===5?ph5:ph7)[i%5])}"><span class="cnt"></span></div>`).join("")}
     <p class="sub" style="font-size:12px;margin:6px 0 0">かなは自動で数えます。漢字入りは「約◯〜◯音」の目安です。多少の字余りはOK。</p>
@@ -790,7 +921,8 @@ function vDrafting(){
     const slow=seats().filter(id=>counts(id)<P);
     return `<div class="waitbox"><div class="brush"></div><div>あなたのドラフトは完了。<br>あと <span class="waitname">${joinNames(slow)}</span> 待ち</div></div>${handHtml}<!--STATUS-->${status}`;
   }
-  const head=`<div class="round"><div><span class="big">第${KANSUJI[r+1]}巡</span><span class="of">/ ${P}</span></div>${dots}</div>`;
+  const dealt=ready && fresh(`pk${game()}-${r}`,1500);
+  const head=`<div class="round"><div><span class="big ${dealt?"pop":""}">第${KANSUJI[r+1]}巡</span><span class="of">/ ${P}</span></div>${dots}</div>`;
   if(!ready){
     return `${head}<div class="waitbox"><div class="brush"></div><div><span class="waitname">${esc(prevName)}</span>さんが選んでいます…</div><p class="sub">選び終わるとパックが回ってきます（スマホが震えます）</p></div>${handHtml}<!--STATUS-->${status}`;
   }
@@ -798,7 +930,7 @@ function vDrafting(){
   return `${head}
   <p class="sub">回ってきたパック（${pack.length}枚）。1枚取ると残りは <b>${esc(nextName)}</b> さんへ。</p>
   ${r===0?`<div class="hint">自分が使う札だけでなく、次の人に渡したくない札をあえて取る「カット」も作戦です。</div>`:""}
-  <div class="cards">${pack.map(c=>`<button class="card c${c.len} ${S.selCard===c.id?"sel":""}" data-a="pickSel" data-id="${c.id}"><span class="k k${c.len}">${KANSUJI[c.len]}</span><span>${esc(c.text)}</span></button>`).join("")}</div>
+  <div class="cards ${dealt?"deal":""}">${pack.map((c,ci)=>`<button style="animation-delay:${(ci*0.06).toFixed(2)}s" class="card c${c.len} ${S.selCard===c.id?"sel":""}" data-a="pickSel" data-id="${c.id}"><span class="k k${c.len}">${KANSUJI[c.len]}</span><span>${esc(c.text)}</span></button>`).join("")}</div>
   <div class="sticky"><button class="btn primary" data-a="pick" ${S.selCard?"":"disabled"}>${S.selCard?"この札を取る":"札をタップして選んでください"}</button></div>
   ${handHtml}<!--STATUS-->${status}`;
 }
@@ -818,7 +950,9 @@ function vComposing(){
   const used=new Set(Object.values(S.compose));
   const full=pat.every((_,i)=>S.compose[i]);
   const enough=hand.filter(c=>c.len===5).length>=pat.filter(x=>x===5).length && hand.filter(c=>c.len===7).length>=pat.filter(x=>x===7).length;
+  const theme=S.room.theme;
   return `<h2>一首ひねる</h2>
+  ${theme?`<div class="theme ${fresh("th"+game(),3000)?"pop":""}"><span class="lb">お題</span><b>${esc(theme)}</b></div>`:""}
   ${m.forms.length>1?`<div class="seg" style="margin-bottom:8px">${m.forms.map(k=>`<button data-a="setForm" data-form="${k}" class="${f===k?"on":""}">${FORMS[k].label}</button>`).join("")}</div>`:""}
   <p class="sub">手札をタップすると枠に入ります。枠をタップで外せます。${FORMS[f].note?`<b>${FORMS[f].note}</b>`:""}</p>
   ${enough?"":`<div class="note warn">この形式に必要な五音・七音の札が足りません（ドラフトの結果です）。${m.forms.length>1?"別の形式を試すか、":""}埋められる枠だけ埋めて「字足らずで出す」こともできます。</div>`}
@@ -830,13 +964,18 @@ function vComposing(){
   <div class="hand">${hand.map(c=>`<button class="chip c${c.len} ${used.has(c.id)?"used":""}" data-a="place" data-id="${c.id}">${esc(c.text)}</button>`).join("")}</div>
   <div class="sticky">${!full && !enough && used.size>0
     ? `<button class="btn primary" data-a="submitPoem" data-short="1">字足らずで出す</button>`
-    : `<button class="btn primary" data-a="submitPoem" ${full?"":"disabled"}>${full?"この歌で決定":"すべての枠を埋めてください"}</button>`}</div>
+    : `<button class="btn primary ${full?"ready":""}" data-a="submitPoem" ${full?"":"disabled"}>${full?"この歌で決定":"すべての枠を埋めてください"}</button>`}</div>
   <!--STATUS-->${status}`;
 }
 
-function poemBoard(p, {showAuthor=true, anim=false, stamp=false}={}){
-  return `<div class="shikishi"><span class="form">${esc(FORMS[p.form]?.label||"")}</span>
-    <div class="body"><div class="tate ${anim?"anim":""}">${p.lines.map((l,i)=>`<span style="animation-delay:${(i*0.9+0.3).toFixed(2)}s">${esc(l)}</span>`).join("")}</div></div>
+function poemBoard(p, {showAuthor=true, anim=false, stamp=false, flip=false, compact=false, lineAuthors=false}={}){
+  const ids=Array.isArray(p.card_ids)?p.card_ids:[];
+  const th=S.room?.theme;
+  return `<div class="shikishi ${compact?"compact":""} ${flip?"flip":""}">${th?`<span class="theme-s">お題・${esc(th)}</span>`:""}<span class="form">${esc(FORMS[p.form]?.label||"")}</span>
+    <div class="body"><div class="tate ${anim?"anim":""} ${lineAuthors&&ids.some(Boolean)?"withau":""}">${p.lines.map((l,i)=>{
+      const c=lineAuthors&&ids[i]?S.cards.find(x=>x.id===ids[i]):null;
+      return `<span style="animation-delay:${(i*0.9+(flip?0.8:0.3)).toFixed(2)}s">${esc(l)}${c?`<small class="au ${stamp?"in":""}">${esc(nameOf(c.origin))}</small>`:""}</span>`;
+    }).join("")}</div></div>
     ${showAuthor
       ? `<div class="by ${stamp?"stamp":""}"><span class="seal">詠</span><span class="nm">${esc(nameOf(p.player_id))}</span></div>`
       : `<div class="by hidden"><span class="seal">詠</span><span class="nm">詠み人は……？</span></div>`}
@@ -846,33 +985,153 @@ function vReveal(){
   const order=seats().map(id=>gPoems().find(p=>p.player_id===id)).filter(Boolean);
   const n=order.length, s=S.room.reveal;
   if(s<0){
-    return `<div class="center" style="padding:30px 0 10px"><h2>全員、詠み終えました</h2><p class="sub">${n}首あります。誰かが「めくる」を押すと、全員の画面で一首ずつ公開されます。<br>詠み人は伏せて出るので、当て合ってみてください。</p></div>
-    <div class="sticky"><button class="btn primary" data-a="revealNext">一首目をめくる</button></div>`;
+    return `<div class="center" style="padding:30px 0 10px"><h2 class="allin">全員、詠み終えました</h2>
+    ${S.room.theme?`<p class="sub">今局のお題は <b>「${esc(S.room.theme)}」</b></p>`:""}
+    <p class="sub">${n}首あります。誰かが「めくる」を押すと、全員の画面で一首ずつ公開されます。<br>詠み人は伏せて出るので、各自のスマホで「誰の歌？」を推理してください。</p></div>
+    <div class="sticky"><button class="btn primary ready" data-a="revealNext">一首目をめくる</button></div>`;
   }
-  if(s>=2*n){
-    return `<h2>今局の歌</h2><p class="sub">横にスクロールして見返せます。</p>
-    <div class="gallery">${order.map(p=>`<div class="mini"><div class="tate">${p.lines.map(l=>`<span>${esc(l)}</span>`).join("")}</div><div class="who">${esc(nameOf(p.player_id))}・${esc(FORMS[p.form]?.label||"")}</div></div>`).join("")}</div>
-    <div class="stack" style="margin-top:8px"><button class="btn primary" data-a="nextGame">同じメンバーでもう一局</button><button class="btn ghost" data-a="toLobby">待合室へ（メンバー・形式を変える）</button></div>`;
-  }
+  if(s>=2*n) return vGallery(order);
   const i=Math.floor(s/2), cur=order[i], shown=s%2===1, last=i>=n-1;
+  const fr=fresh(`rv${game()}-${s}`, 6500);
+  if(shown && fr) once(`pt${game()}-${s}`, ()=>setTimeout(spawnPetals, 250));
   // 読み手：詠み人以外から順番に指名
   const others=seats().filter(id=>id!==cur.player_id);
   const reader=others.length?others[(i+game())%others.length]:cur.player_id;
-  return `<div class="round"><div><span class="big">${KANSUJI[i+1]||i+1}首目</span><span class="of">/ ${n}</span></div></div>
+  const main=`<div class="round"><div><span class="big">${KANSUJI[i+1]||i+1}首目</span><span class="of">/ ${n}</span></div></div>
   ${!shown?`<div class="reader">読み手：<b>${esc(nameOf(reader))}</b>さん、声に出してどうぞ</div>`:""}
-  ${poemBoard(cur,{showAuthor:shown, anim:!shown, stamp:shown})}
-  <div class="sticky">${!shown
+  ${poemBoard(cur,{showAuthor:shown, anim:!shown&&fr, flip:!shown&&fr, stamp:shown&&fr, compact:true, lineAuthors:shown})}`;
+  // 推理の欄（ここだけ書き換えるので、歌の演出は投票しても止まらない）
+  const voters=others;
+  const gs=gGuesses().filter(g=>g.poem_player===cur.player_id && voters.includes(g.voter_id));
+  const cnt=`推理 ${gs.length}/${voters.length}人`;
+  let panel="";
+  if(!shown){
+    if(!inGame()) panel=`<p class="sub center">${cnt}</p>`;
+    else if(cur.player_id===S.me) panel=`<div class="note center">あなたの歌です。ばれないように、知らんぷりを……<br><span class="muted">${cnt}</span></div>`;
+    else {
+      const mine=gs.find(g=>g.voter_id===S.me);
+      panel=`<div class="guess"><div class="q"><span>誰の歌？</span><span class="muted" style="font-weight:500">${cnt}</span></div>
+      <div class="gbtns">${seats().filter(id=>id!==S.me).map(id=>`<button class="gbtn ${mine?.guess===id?"on":""}" data-a="guess" data-poem="${cur.player_id}" data-id="${id}">${esc(nameOf(id))}</button>`).join("")}</div></div>`;
+    }
+  } else {
+    const hit=gs.filter(g=>g.guess===cur.player_id).map(g=>g.voter_id);
+    const miss=gs.filter(g=>g.guess!==cur.player_id);
+    panel=`<div class="result ${fr?"in":""}">${hit.length?`見破った人：<b>${joinNames(hit)}</b>`:gs.length?`<b>誰にも見破られなかった！</b>`:`<span class="muted">推理はありませんでした</span>`}
+      ${miss.length?`<span class="miss">外れ：${miss.map(g=>`${esc(nameOf(g.voter_id))}さん→${esc(nameOf(g.guess))}さん`).join("、")}</span>`:""}</div>
+      <div style="display:flex;justify-content:center"><button class="btn small ghost" data-a="saveImg" data-pid="${cur.player_id}">画像で保存</button></div>`;
+  }
+  const btn=`<div class="sticky">${!shown
     ? `<button class="btn primary" data-a="revealNext">詠み人を明かす</button>`
     : `<button class="btn primary" data-a="revealNext">${last?"今局の歌を見る":"次の歌をめくる"}</button>`}</div>`;
+  return `${main}<!--STATUS-->${panel}${btn}`;
+}
+function vGallery(order){
+  const sts=seats();
+  // 好きな歌（全員が選び終わるまで票数は伏せる）
+  const favs=gFavs().filter(f=>sts.includes(f.voter_id));
+  const myFav=favs.find(f=>f.voter_id===S.me)?.poem_player;
+  const allFav=order.length>1 && favs.length>=sts.length;
+  const favCnt={}; favs.forEach(f=>favCnt[f.poem_player]=(favCnt[f.poem_player]||0)+1);
+  const maxFav=Math.max(0,...Object.values(favCnt));
+  const meika=allFav&&maxFav>0 ? order.filter(p=>favCnt[p.player_id]===maxFav).map(p=>p.player_id) : [];
+  // 名探偵：いちばん詠み人を当てた人
+  const gs=gGuesses().filter(g=>sts.includes(g.voter_id) && g.voter_id!==g.poem_player);
+  const hits={}; gs.forEach(g=>{ if(g.guess===g.poem_player) hits[g.voter_id]=(hits[g.voter_id]||0)+1; });
+  const maxHit=Math.max(0,...Object.values(hits));
+  const dets=maxHit>0?Object.keys(hits).filter(k=>hits[k]===maxHit):[];
+  // 隠れ名人：いちばん見破られなかった詠み人
+  const per={};
+  order.forEach(p=>{ const v=gs.filter(g=>g.poem_player===p.player_id); if(v.length) per[p.player_id]=v.filter(g=>g.guess===p.player_id).length; });
+  const vals=Object.values(per), minH=Math.min(...vals), maxH=Math.max(...vals);
+  const hiders=vals.length && (minH===0 || minH<maxH) ? Object.keys(per).filter(k=>per[k]===minH) : [];
+  const awards=[
+    meika.length?`<span class="award"><b>名歌</b>${joinNames(meika)}</span>`:"",
+    dets.length?`<span class="award"><b>名探偵</b>${joinNames(dets)}（${maxHit}首的中）</span>`:"",
+    hiders.length?`<span class="award"><b>隠れ名人</b>${joinNames(hiders)}</span>`:"",
+  ].join("");
+  const canFav=inGame() && order.length>1;
+  return `<h2>今局の歌</h2>
+  ${awards?`<div class="awards">${awards}</div>`:""}
+  <p class="sub">${canFav&&!allFav?`自分以外で好きな歌に♡を（${favs.length}/${sts.length}人）。全員そろうと「名歌」が決まります。`:"横にスクロールして見返せます。"}</p>
+  <div class="gallery">${order.map(p=>`<div class="mini ${meika.includes(p.player_id)?"meika":""}"><div class="tate">${p.lines.map(l=>`<span>${esc(l)}</span>`).join("")}</div><div class="who">${esc(nameOf(p.player_id))}・${esc(FORMS[p.form]?.label||"")}</div>
+    <div class="acts"><button class="${myFav===p.player_id?"on":""}" data-a="fav" data-pid="${p.player_id}" ${canFav&&p.player_id!==S.me?"":"disabled"} aria-label="好きな歌に選ぶ">♡${allFav?` ${favCnt[p.player_id]||0}`:""}</button><button data-a="saveImg" data-pid="${p.player_id}">保存</button></div></div>`).join("")}</div>
+  <div class="stack" style="margin-top:8px"><button class="btn primary" data-a="nextGame">同じメンバーでもう一局</button><button class="btn ghost" data-a="toLobby">待合室へ（メンバー・形式を変える）</button></div>`;
+}
+
+/* ---------- 色紙を画像にする ---------- */
+function vChar(ctx, ch, cx, cy, fs){
+  // 縦書きで向きを変える文字（伸ばし棒・かっこ・英数字など）は90度回す
+  if(/[ー―‐\-〜～~…‥＝=（）()「」『』【】A-Za-z0-9!?！？]/.test(ch)){
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(Math.PI/2); ctx.fillText(ch,0,0); ctx.restore(); return;
+  }
+  if(/[、。，．,.]/.test(ch)){ ctx.fillText(ch, cx+fs*0.6, cy-fs*0.6); return; }
+  if(SMALL.has(ch) || ch==="っ" || ch==="ッ"){ ctx.fillText(ch, cx+fs*0.12, cy-fs*0.12); return; }
+  ctx.fillText(ch,cx,cy);
+}
+async function poemCanvas(p){
+  const fam='"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+  try{ await Promise.race([document.fonts.load('700 60px "Shippori Mincho B1"'), new Promise(r=>setTimeout(r,1500))]); }catch{}
+  const W=1080, H=1215, m=40, c=document.createElement("canvas"); c.width=W; c.height=H;
+  const ctx=c.getContext("2d");
+  ctx.fillStyle="#ece4d4"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#fbf8f1"; ctx.fillRect(m,m,W-2*m,H-2*m);
+  ctx.strokeStyle="#d9cfbd"; ctx.lineWidth=2; ctx.strokeRect(m,m,W-2*m,H-2*m);
+  // 金の砂子
+  let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  for(let i=0;i<150;i++){ ctx.fillStyle=`rgba(201,163,90,${(0.12+rnd()*0.28).toFixed(2)})`; ctx.beginPath(); ctx.arc(m+rnd()*(W-2*m), m+rnd()*(H-2*m), 1+rnd()*3.5, 0, Math.PI*2); ctx.fill(); }
+  for(const [gx,gy,r] of [[W-m,m,W*0.45],[m,H-m,W*0.5]]){
+    const g=ctx.createRadialGradient(gx,gy,0,gx,gy,r); g.addColorStop(0,"rgba(201,163,90,.28)"); g.addColorStop(1,"rgba(201,163,90,0)");
+    ctx.fillStyle=g; ctx.fillRect(m,m,W-2*m,H-2*m);
+  }
+  // 形式・お題
+  ctx.textBaseline="top"; ctx.font=`700 30px ${fam}`;
+  ctx.fillStyle="#776f62"; ctx.textAlign="right"; ctx.fillText(FORMS[p.form]?.label||"", W-m-30, m+26);
+  if(S.room?.theme){ ctx.fillStyle="#a8843f"; ctx.textAlign="left"; ctx.fillText("お題・"+S.room.theme, m+30, m+26); }
+  // 歌（縦書き・右から左へ、行ごとに少しずつ下げる）
+  const lines=p.lines.map(l=>[...String(l)]), offs=[0,1.2,2.4,0.6,1.8];
+  const top=m+110, bottom=H-m-150;
+  const maxLen=Math.max(...lines.map((l,i)=>l.length*1.08+offs[i%5]));
+  let fs=Math.min(80, (bottom-top)/maxLen), colW=fs*1.8;
+  const maxW=W-2*m-140;
+  if(colW*lines.length>maxW){ colW=maxW/lines.length; fs=Math.min(fs, colW/1.5); }
+  const x0=W/2+colW*lines.length/2-colW/2;
+  ctx.fillStyle="#1d1b18"; ctx.font=`700 ${fs.toFixed(1)}px ${fam}`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  lines.forEach((chs,i)=>{ const cx=x0-i*colW; let y=top+offs[i%5]*fs; for(const ch of chs){ vChar(ctx,ch,cx,y+fs/2,fs); y+=fs*1.08; } });
+  // 詠み人
+  ctx.strokeStyle="#d9cfbd"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(m+30,H-m-112); ctx.lineTo(W-m-30,H-m-112); ctx.stroke();
+  const name=nameOf(p.player_id), ny=H-m-58;
+  ctx.font=`700 42px ${fam}`; ctx.textAlign="right"; ctx.fillStyle="#1d1b18"; ctx.fillText(name, W-m-30, ny);
+  const nw=ctx.measureText(name).width;
+  ctx.save(); ctx.translate(W-m-30-nw-46, ny); ctx.rotate(-4*Math.PI/180);
+  ctx.fillStyle="#c4402c"; if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(-27,-27,54,54,6); ctx.fill(); } else ctx.fillRect(-27,-27,54,54);
+  ctx.fillStyle="#fff"; ctx.font=`800 30px ${fam}`; ctx.textAlign="center"; ctx.fillText("詠",0,2); ctx.restore();
+  ctx.textAlign="left"; ctx.fillStyle="#a39a8a"; ctx.font=`500 26px ${fam}`; ctx.fillText("和歌ドラフト", m+30, ny);
+  return c;
+}
+async function savePoemImage(p){
+  const c=await poemCanvas(p);
+  const blob=await new Promise(r=>c.toBlob(r,"image/png"));
+  if(!blob) return toast("画像を作れませんでした");
+  if(S.img?.url) URL.revokeObjectURL(S.img.url);
+  const name=`和歌ドラフト_${nameOf(p.player_id)}.png`.replace(/[\\/:*?"<>|]/g,"");
+  S.img={blob, url:URL.createObjectURL(blob), name};
+  $("#imgm-img").src=S.img.url;
+  let canShare=false;
+  try{ canShare=!!(navigator.canShare && navigator.canShare({files:[new File([blob],name,{type:"image/png"})]})); }catch{}
+  $("#imgm-share").style.display=canShare?"":"none";
+  $("#imgm").hidden=false;
 }
 
 /* ---------- イベント ---------- */
 document.addEventListener("click",e=>{
   keepAwake();
+  if(e.target.id==="imgm"){ $("#imgm").hidden=true; return; }
   const el=e.target.closest("[data-a]"); if(!el || el.disabled) return;
   const fn=actions[el.dataset.a]; if(!fn) return;
   guard(()=>fn(el));
 });
+addEventListener("resize",()=>fitTate());
+document.fonts?.ready.then(()=>fitTate());
 document.addEventListener("keydown",e=>{
   if(e.key==="Enter" && !e.isComposing && e.keyCode!==229 && e.target.id==="code") guard(()=>actions.join());
 });
