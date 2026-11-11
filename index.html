@@ -161,7 +161,7 @@ button.chip.used{opacity:.3;text-decoration:line-through}
 .tate span:nth-child(3){padding-top:2.4em}
 .tate span:nth-child(4){padding-top:.6em}
 .tate span:nth-child(5){padding-top:1.8em}
-.tate.anim span{opacity:0;animation:ink .7s ease forwards}
+.tate.anim span{opacity:0;animation:ink 1.4s ease forwards}
 @keyframes ink{from{opacity:0;filter:blur(3px);transform:translateY(-6px)}to{opacity:1;filter:none;transform:none}}
 .shikishi .by{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line);font-family:var(--mincho);font-weight:700;font-size:16px;color:var(--ink);min-height:44px}
 .shikishi .by .seal{width:26px;height:26px;font-size:13px}
@@ -349,8 +349,14 @@ function subscribe(code){
   ch.on("postgres_changes",{event:"*",schema:"public",table:"rooms",filter:`code=eq.${code}`},scheduleRefresh);
   for(const t of ["players","cards","picks","poems"])
     ch.on("postgres_changes",{event:"*",schema:"public",table:t,filter:`room_code=eq.${code}`},scheduleRefresh);
+  // 削除の通知は部屋で絞り込めないため、全部屋分が届く。
+  // 手元にある札・歌・参加者が消えたときだけ読み直す（よその部屋の削除で重くならないように）
+  const known={cards:()=>S.cards, poems:()=>S.poems, players:()=>S.players};
   for(const t of ["cards","poems","players"])
-    ch.on("postgres_changes",{event:"DELETE",schema:"public",table:t},scheduleRefresh);
+    ch.on("postgres_changes",{event:"DELETE",schema:"public",table:t},payload=>{
+      const id=payload?.old?.id;
+      if(id==null || known[t]().some(x=>x.id===id)) scheduleRefresh();
+    });
   ch.subscribe(status=>{
     if(status==="SUBSCRIBED"){ NET.channelDown=false; updateNet(); scheduleRefresh(); }
     else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){ NET.channelDown=true; updateNet(); }
@@ -622,7 +628,12 @@ function renderBar(){
 function afterRender(){
   const q=$("#qr");
   if(q && window.qrcode){ const qr=qrcode(0,"M"); qr.addData(roomUrl()); qr.make(); q.innerHTML=qr.createSvgTag({cellSize:4, margin:2, scalable:true}); }
-  document.querySelectorAll("input[data-len]").forEach(inp=>{
+  // 入力途中の文字は画面の書き換え判定に含めず、作り直した直後にだけ下書きから戻す
+  // （含めると1文字打つたびに入力欄が作り直され、キーボードが閉じてしまう）
+  let draft=[];
+  if($("input[data-len]")){ try{ draft=JSON.parse(LS.get(draftKey())||"[]"); }catch{} }
+  document.querySelectorAll("input[data-len]").forEach((inp,i)=>{
+    if(!inp.value && draft[i]) inp.value=draft[i];
     const upd=()=>{
       const l=moraLabel(inp.value, +inp.dataset.len), c=inp.parentElement.querySelector(".cnt");
       c.className="cnt "+l.cls; c.innerHTML=l.txt;
@@ -718,13 +729,12 @@ function vWriting(){
     <div style="margin-top:12px"><button class="btn small ghost" data-a="editPack">書き直す</button></div></div>
     <!--STATUS-->${status}`;
   }
-  let draft=[]; try{ draft=JSON.parse(LS.get(draftKey())||"[]"); }catch{}
   const m=mode();
   const ph5=["夜明けまで","カレー食う","さようなら","星空に","鬼瓦"], ph7=["願いを込めて","蛙飛び込む","札束の海","締め切りは明日","全部夢だった"];
   return `<h2>パックを作る</h2>
   <p class="sub">五音${m.n5}つ・七音${m.n7}つ。和歌っぽくなくて大丈夫。流行語、昨日の夕飯、何でも。</p>
   <div class="panel">
-    ${packSlots().map((len,i)=>`<div class="phr"><span class="k k${len}">${KANSUJI[len]}</span><input id="ph${i}" class="t" data-len="${len}" maxlength="40" value="${esc(draft[i]||"")}" placeholder="${esc((len===5?ph5:ph7)[i%5])}"><span class="cnt"></span></div>`).join("")}
+    ${packSlots().map((len,i)=>`<div class="phr"><span class="k k${len}">${KANSUJI[len]}</span><input id="ph${i}" class="t" data-len="${len}" maxlength="40" placeholder="${esc((len===5?ph5:ph7)[i%5])}"><span class="cnt"></span></div>`).join("")}
     <p class="sub" style="font-size:12px;margin:6px 0 0">かなは自動で数えます。漢字入りは「約◯〜◯音」の目安です。多少の字余りはOK。</p>
   </div>
   <div class="sticky"><button class="btn primary" data-a="submitPack">このパックで提出</button></div>
@@ -806,7 +816,7 @@ function vComposing(){
 
 function poemBoard(p, {showAuthor=true, anim=false, stamp=false}={}){
   return `<div class="shikishi"><span class="form">${esc(FORMS[p.form]?.label||"")}</span>
-    <div class="body"><div class="tate ${anim?"anim":""}">${p.lines.map((l,i)=>`<span style="animation-delay:${(i*0.45+0.15).toFixed(2)}s">${esc(l)}</span>`).join("")}</div></div>
+    <div class="body"><div class="tate ${anim?"anim":""}">${p.lines.map((l,i)=>`<span style="animation-delay:${(i*0.9+0.3).toFixed(2)}s">${esc(l)}</span>`).join("")}</div></div>
     ${showAuthor
       ? `<div class="by ${stamp?"stamp":""}"><span class="seal">詠</span><span class="nm">${esc(nameOf(p.player_id))}</span></div>`
       : `<div class="by hidden"><span class="seal">詠</span><span class="nm">詠み人は……？</span></div>`}
